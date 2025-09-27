@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  Alert,
-  Switch,
-} from "react-native";
+import { View, Text, TouchableOpacity, Image, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "./context/AuthContext"; // Import auth context
@@ -18,9 +11,8 @@ export default function Settings() {
   const params = useLocalSearchParams();
   const { user, logout, isGuest } = useAuth(); // Get auth state
 
-  // State for user data and notifications
+  // State for user data
   const [currentUser, setCurrentUser] = useState(null);
-  const [notifications, setNotifications] = useState(true);
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState("success");
 
@@ -38,12 +30,9 @@ export default function Settings() {
           // Add preferences if not exists
           const userWithPreferences = {
             ...userData,
-            preferences: userData.preferences || { notifications: true },
+            preferences: userData.preferences || {},
           };
           setCurrentUser(userWithPreferences);
-          setNotifications(
-            userWithPreferences.preferences?.notifications ?? true
-          );
         } else {
           showMessage("User not found", "error");
         }
@@ -60,30 +49,6 @@ export default function Settings() {
     setMessage(text);
     setMessageType(type);
     setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleUpdateNotifications = (value) => {
-    if (!currentUser) return;
-
-    // Update local state immediately for better UX
-    setNotifications(value);
-
-    // Update in demo data
-    const result = userProfileManager.updateUserPreferences(currentUser.id, {
-      notifications: value,
-    });
-
-    if (result.success) {
-      setCurrentUser((prevUser) => ({
-        ...prevUser,
-        preferences: result.preferences,
-      }));
-      showMessage("Notification settings updated successfully", "success");
-    } else {
-      // Revert if update failed
-      setNotifications(!value);
-      showMessage(result.message, "error");
-    }
   };
 
   const handleLogout = () => {
@@ -219,26 +184,24 @@ export default function Settings() {
           <Text style={settingsStyles.optionText}>Profile</Text>
         </TouchableOpacity>
 
-        {/* Push Notifications Option with Switch */}
-        <View style={settingsStyles.notificationCard}>
-          <View style={settingsStyles.notificationContent}>
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={SETTINGS_COLORS.primary}
-              style={settingsStyles.optionIcon}
-            />
-            <Text style={settingsStyles.optionText}>Push Notifications</Text>
-          </View>
-
-          <Switch
-            trackColor={{ false: "#ccc", true: SETTINGS_COLORS.accent }}
-            thumbColor="#fff"
-            onValueChange={handleUpdateNotifications}
-            value={notifications}
-            style={settingsStyles.customSwitch}
+        {/* My Complaints Option */}
+        <TouchableOpacity
+          style={settingsStyles.optionCard}
+          onPress={() =>
+            router.push({
+              pathname: "/Complaints",
+              params: { userId: params.userId || currentUser?.id },
+            })
+          }
+        >
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={24}
+            color={SETTINGS_COLORS.primary}
+            style={settingsStyles.optionIcon}
           />
-        </View>
+          <Text style={settingsStyles.optionText}>My Complaints</Text>
+        </TouchableOpacity>
 
         {/* Help & Support Option */}
         <TouchableOpacity
