@@ -12,12 +12,14 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import styles from "./src/style";
+import { Ionicons } from "@expo/vector-icons";
+import loginStyles from "./src/Login.js";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleLogin = () => {
@@ -29,11 +31,15 @@ export default function Login() {
     router.replace("/Menu");
   };
 
+  const handleGuestContinue = () => {
+    router.replace("/Menu");
+  };
+
   return (
     <ImageBackground
       source={require("../assets/images/NuEatsBG.png")}
-      style={styles.background}       
-      imageStyle={styles.bgImage}      
+      style={loginStyles.background}
+      imageStyle={loginStyles.bgImage}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -43,21 +49,21 @@ export default function Login() {
           contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.loginContainer}>
+          <View style={loginStyles.loginContainer}>
             <Image
               source={require("../assets/images/NuEatsLogo.png")}
-              style={styles.logo}      
+              style={loginStyles.logo}
               resizeMode="contain"
             />
 
-            <View style={styles.loginCard}>
-              <Text style={styles.loginHeader}>
-                <Text style={styles.loginWelcome}>Welcome </Text>to NUeats!
+            <View style={loginStyles.loginCard}>
+              <Text style={loginStyles.loginHeader}>
+                <Text style={loginStyles.loginWelcome}>Welcome </Text>to NUeats!
               </Text>
 
               {/* Email */}
               <TextInput
-                style={styles.loginInput}   
+                style={loginStyles.loginInput}
                 placeholder="Enter your email"
                 value={email}
                 onChangeText={setEmail}
@@ -65,37 +71,59 @@ export default function Login() {
                 keyboardType="email-address"
               />
 
-              {/* Password */}
-              <TextInput
-                style={styles.loginInput}   
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+              {/* Password with Eye Icon */}
+              <View style={loginStyles.passwordInputContainer}>
+                <TextInput
+                  style={loginStyles.passwordInput}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={loginStyles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
 
-              <View style={styles.loginOptions}>
+              <View style={loginStyles.loginOptions}>
                 <TouchableOpacity onPress={() => setRemember(!remember)}>
-                  <Text style={styles.remember}>
+                  <Text style={loginStyles.remember}>
                     {remember ? "☑" : "☐"} Remember Me
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity>
-                  <Text style={styles.forgot}>Forgot Password?</Text>
+                  <Text style={loginStyles.forgot}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-                <Text style={styles.loginBtnText}>Login</Text>
+              <TouchableOpacity
+                style={loginStyles.loginBtn}
+                onPress={handleLogin}
+              >
+                <Text style={loginStyles.loginBtnText}>Login</Text>
               </TouchableOpacity>
 
-              <View style={styles.loginSignupRow}>
-                <Text style={{ color: "#fff" }}>Don’t have an account? </Text>
+              <View style={loginStyles.loginSignupRow}>
+                <Text style={{ color: "#fff" }}>Don't have an account? </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/Termsandconditions")}
                 >
-                  <Text style={styles.loginSignupLink}>Sign Up</Text>
+                  <Text style={loginStyles.loginSignupLink}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Continue as Guest Option */}
+              <View style={loginStyles.guestOption}>
+                <TouchableOpacity onPress={handleGuestContinue}>
+                  <Text style={loginStyles.guestText}>Continue as Guest</Text>
                 </TouchableOpacity>
               </View>
             </View>

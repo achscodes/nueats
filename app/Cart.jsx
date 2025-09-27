@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { CartContext } from "./context/CartContext";
-import styles, { COLORS } from "./src/style"; // ✅ clean import
+import cartStyles, { CART_COLORS } from "./src/Cart.js"; // ✅ Import dedicated cart styles
 import { Ionicons } from "@expo/vector-icons";
 
 export default function Cart() {
@@ -22,7 +22,11 @@ export default function Cart() {
   const handleRemoveItem = (id) => {
     Alert.alert("Remove Item", "Are you sure you want to remove this item?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => removeFromCart(id) },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => removeFromCart(id),
+      },
     ]);
   };
 
@@ -35,75 +39,81 @@ export default function Cart() {
   // Navigate to Checkout page
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
-    router.push("/Checkout"); // ✅ fixed path
+    router.push("/Checkout");
   };
 
   return (
-    <SafeAreaView style={styles.cartContainer}>
+    <SafeAreaView style={cartStyles.cartContainer}>
       {/* Header */}
-      <View style={styles.cartHeader}>
+      <View style={cartStyles.cartHeader}>
         <TouchableOpacity onPress={() => router.replace("/Menu")}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+          <Ionicons name="arrow-back" size={22} color={CART_COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.cartHeaderTitle}>CART</Text>
+        <Text style={cartStyles.cartHeaderTitle}>CART</Text>
         <View style={{ width: 25 }} />
       </View>
 
       {cartItems.length === 0 ? (
-        <View style={styles.emptyCart}>
-          <Text style={styles.emptyCartText}>Your cart is empty 🛒</Text>
+        <View style={cartStyles.emptyCart}>
+          <Text style={cartStyles.emptyCartText}>Your cart is empty 🛒</Text>
         </View>
       ) : (
         <>
           <FlatList
             data={cartItems}
-            keyExtractor={(item) => String(item.id)} // ✅ ensure string keys
+            keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ paddingBottom: 150 }}
             renderItem={({ item }) => (
-              <View style={styles.cartCard}>
+              <View style={cartStyles.cartCard}>
                 {/* Food Image */}
                 <Image
-                  source={{ uri: item.image || "https://via.placeholder.com/60" }}
-                  style={styles.cartFoodImage}
+                  source={{
+                    uri: item.image || "https://via.placeholder.com/60",
+                  }}
+                  style={cartStyles.cartFoodImage}
                 />
 
                 {/* Food Details */}
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.cartFoodName}>{item.name}</Text>
-                  <Text style={styles.cartFoodServing}>1 Serving</Text>
+                  <Text style={cartStyles.cartFoodName}>{item.name}</Text>
+                  <Text style={cartStyles.cartFoodServing}>1 Serving</Text>
 
                   {/* Quantity Controls */}
-                  <View style={styles.qtyControls}>
+                  <View style={cartStyles.qtyControls}>
                     <TouchableOpacity
                       onPress={() => decreaseQty(item.id)}
-                      style={styles.qtyBtn}
+                      style={cartStyles.qtyBtn}
                     >
                       <Ionicons
                         name="remove"
                         size={18}
-                        color={COLORS.primary}
+                        color={CART_COLORS.primary}
                       />
                     </TouchableOpacity>
-                    <Text style={styles.qtyText}>{item.quantity}</Text>
+                    <Text style={cartStyles.qtyText}>{item.quantity}</Text>
                     <TouchableOpacity
                       onPress={() => increaseQty(item.id)}
-                      style={styles.qtyBtn}
+                      style={cartStyles.qtyBtn}
                     >
-                      <Ionicons name="add" size={18} color={COLORS.primary} />
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={CART_COLORS.primary}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Price & Remove */}
                 <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.price}>
+                  <Text style={cartStyles.price}>
                     ₱{item.price * item.quantity}
                   </Text>
                   <TouchableOpacity
                     onPress={() => handleRemoveItem(item.id)}
-                    style={styles.removeBtn}
+                    style={cartStyles.removeBtn}
                   >
-                    <Text style={styles.removeText}>Remove</Text>
+                    <Text style={cartStyles.removeText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -111,13 +121,13 @@ export default function Cart() {
           />
 
           {/* Total and Checkout Button */}
-          <View style={styles.checkoutContainer}>
-            <Text style={styles.totalText}>Total: ₱{totalPrice}</Text>
+          <View style={cartStyles.checkoutContainer}>
+            <Text style={cartStyles.totalText}>Total: ₱{totalPrice}</Text>
             <TouchableOpacity
-              style={styles.checkoutBtn}
+              style={cartStyles.checkoutBtn}
               onPress={handleCheckout}
             >
-              <Text style={styles.checkoutText}>Checkout</Text>
+              <Text style={cartStyles.checkoutText}>Checkout</Text>
             </TouchableOpacity>
           </View>
         </>

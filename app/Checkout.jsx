@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { CartContext } from "./context/CartContext";
 import { OrderContext } from "./context/OrderContext";
-import styles from "./src/style"; // ✅ no .jsx
+import checkoutStyles from "./src/Checkout.js"; // ✅ Import dedicated checkout styles
 
 export default function Checkout() {
   const router = useRouter();
@@ -84,13 +84,16 @@ export default function Checkout() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.checkoutItemCard} key={item.id}>
-      <Image source={{ uri: item.image }} style={styles.checkoutItemImage} />
+    <View style={checkoutStyles.checkoutItemCard} key={item.id}>
+      <Image
+        source={{ uri: item.image }}
+        style={checkoutStyles.checkoutItemImage}
+      />
       <View style={{ flex: 1 }}>
-        <Text style={styles.checkoutItemName}>{item.name}</Text>
-        <Text style={styles.checkoutItemQty}>x{item.quantity}</Text>
+        <Text style={checkoutStyles.checkoutItemName}>{item.name}</Text>
+        <Text style={checkoutStyles.checkoutItemQty}>x{item.quantity}</Text>
       </View>
-      <Text style={styles.checkoutItemPrice}>
+      <Text style={checkoutStyles.checkoutItemPrice}>
         ₱{item.price * item.quantity}
       </Text>
     </View>
@@ -102,7 +105,11 @@ export default function Checkout() {
       value: "Gcash",
       icon: require("../assets/images/Gcash.png"),
     },
-    { label: "Cash", value: "Cash", icon: require("../assets/images/Cash.png") },
+    {
+      label: "Cash",
+      value: "Cash",
+      icon: require("../assets/images/Cash.png"),
+    },
     {
       label: "Pay Maya",
       value: "PayMaya",
@@ -111,23 +118,23 @@ export default function Checkout() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={checkoutStyles.container}>
       {/* Header */}
-      <View style={styles.checkoutHeader}>
+      <View style={checkoutStyles.checkoutHeader}>
         <TouchableOpacity
           onPress={() => router.replace("/Cart")}
-          style={styles.checkoutBackButton}
+          style={checkoutStyles.checkoutBackButton}
         >
-          <Text style={styles.checkoutBackArrow}>←</Text>
+          <Text style={checkoutStyles.checkoutBackArrow}>←</Text>
         </TouchableOpacity>
 
-        <Text style={styles.checkoutHeaderText}>CHECKOUT</Text>
+        <Text style={checkoutStyles.checkoutHeaderText}>CHECKOUT</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
         {/* Items */}
-        <View style={styles.itemsCard}>
-          <Text style={styles.sectionTitle}>Your Items</Text>
+        <View style={checkoutStyles.itemsCard}>
+          <Text style={checkoutStyles.sectionTitle}>Your Items</Text>
           <FlatList
             data={cartItems}
             renderItem={renderItem}
@@ -143,35 +150,35 @@ export default function Checkout() {
         </View>
 
         {/* Payment */}
-        <View style={styles.paymentSection}>
-          <Text style={styles.paymentTitle}>Payment Method</Text>
+        <View style={checkoutStyles.paymentSection}>
+          <Text style={checkoutStyles.paymentTitle}>Payment Method</Text>
           {paymentMethods.map((method) => (
             <TouchableOpacity
               key={method.value}
-              style={styles.method}
+              style={checkoutStyles.method}
               onPress={() => setSelectedPayment(method.value)}
             >
-              <View style={styles.radioCircle}>
+              <View style={checkoutStyles.radioCircle}>
                 {selectedPayment === method.value && (
-                  <View style={styles.radioDot} />
+                  <View style={checkoutStyles.radioDot} />
                 )}
               </View>
-              <Image source={method.icon} style={styles.icon} />
-              <Text style={styles.label}>{method.label}</Text>
+              <Image source={method.icon} style={checkoutStyles.icon} />
+              <Text style={checkoutStyles.label}>{method.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
 
       {/* Total + Order Button */}
-      <View style={styles.bottomSection}>
-        <View style={styles.total}>
-          <Text style={styles.totalText}>TOTAL</Text>
-          <Text style={styles.totalText}>₱{totalAmount}</Text>
+      <View style={checkoutStyles.bottomSection}>
+        <View style={checkoutStyles.total}>
+          <Text style={checkoutStyles.totalText}>TOTAL</Text>
+          <Text style={checkoutStyles.totalText}>₱{totalAmount}</Text>
         </View>
 
-        <TouchableOpacity style={styles.orderBtn} onPress={handleOrder}>
-          <Text style={styles.orderText}>ORDER</Text>
+        <TouchableOpacity style={checkoutStyles.orderBtn} onPress={handleOrder}>
+          <Text style={checkoutStyles.orderText}>ORDER</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -29,6 +29,8 @@ export default function RootLayout() {
             <Stack.Screen name="AboutPage" />
             {/* ✅ Add Settings screen since Menu links to it */}
             <Stack.Screen name="Setting" />
+            {/* ✅ Add Help & Support screen */}
+            <Stack.Screen name="HelpSupport" />
           </Stack>
         </OrderProvider>
       </CartProvider>

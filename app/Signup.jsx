@@ -11,24 +11,72 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import styles from "./src/style.jsx"; // central styles
+import signupStyles from "./src/Signup.js"; // ✅ Import dedicated signup styles
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState("");
-  const [suffix, setSuffix] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const router = useRouter();
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const validatePassword = (password) => {
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+    return passwordRegex.test(password);
+  };
+
   const handleSignUp = () => {
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !phoneNumber ||
+      !password ||
+      !confirmPassword
+    ) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
+
+    if (!validateEmail(email)) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+
+    if (!validatePhoneNumber(phoneNumber)) {
+      Alert.alert(
+        "Error",
+        "Please enter a valid Philippine phone number (11 digits starting with 09)."
+      );
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      Alert.alert(
+        "Error",
+        "Password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
+      );
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match.");
       return;
@@ -40,8 +88,8 @@ export default function SignUp() {
   return (
     <ImageBackground
       source={require("../assets/images/NuEatsBG.png")}
-      style={styles.background}
-      imageStyle={styles.bgImage}
+      style={signupStyles.background}
+      imageStyle={signupStyles.bgImage}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -51,45 +99,37 @@ export default function SignUp() {
           contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.signupContainer}>
+          <View style={signupStyles.signupContainer}>
             {/* Logo */}
             <Image
               source={require("../assets/images/NuEatsLogo.png")}
-              style={styles.logo}
+              style={signupStyles.logo}
               resizeMode="contain"
             />
 
             {/* Card */}
-            <View style={styles.signupCard}>
-              <Text style={styles.signupHeader}>Sign Up</Text>
+            <View style={signupStyles.signupCard}>
+              <Text style={signupStyles.signupHeader}>Sign Up</Text>
 
               {/* Already have account */}
-              <View style={styles.loginSignupRow}>
+              <View style={signupStyles.loginSignupRow}>
                 <Text style={{ color: "#fff" }}>Already have an account? </Text>
                 <TouchableOpacity onPress={() => router.push("/Login")}>
-                  <Text style={styles.loginSignupLink}>Log In</Text>
+                  <Text style={signupStyles.loginSignupLink}>Log In</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* First Name + Suffix */}
-              <View style={styles.signupRow}>
-                <TextInput
-                  style={styles.signupInputHalf}
-                  placeholder="First Name"
-                  value={firstName}
-                  onChangeText={setFirstName}
-                />
-                <TextInput
-                  style={styles.signupInputHalf}
-                  placeholder="Suffix"
-                  value={suffix}
-                  onChangeText={setSuffix}
-                />
-              </View>
+              {/* First Name - now full width */}
+              <TextInput
+                style={signupStyles.signupInput}
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
 
               {/* Last Name */}
               <TextInput
-                style={styles.signupInput}
+                style={signupStyles.signupInput}
                 placeholder="Last Name"
                 value={lastName}
                 onChangeText={setLastName}
@@ -97,7 +137,7 @@ export default function SignUp() {
 
               {/* Email */}
               <TextInput
-                style={styles.signupInput}
+                style={signupStyles.signupInput}
                 placeholder="Enter your email"
                 value={email}
                 onChangeText={setEmail}
@@ -105,27 +145,80 @@ export default function SignUp() {
                 keyboardType="email-address"
               />
 
-              {/* Password */}
+              {/* Phone Number */}
               <TextInput
-                style={styles.signupInput}
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
+                style={signupStyles.signupInput}
+                placeholder="Enter your phone number"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
               />
+
+              {/* Password */}
+              <View style={signupStyles.signupPasswordContainer}>
+                <TextInput
+                  style={signupStyles.signupPasswordInput}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={signupStyles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
 
               {/* Confirm Password */}
-              <TextInput
-                style={styles.signupInput}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
+              <View style={signupStyles.signupPasswordContainer}>
+                <TextInput
+                  style={signupStyles.signupPasswordInput}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity
+                  style={signupStyles.eyeIcon}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Ionicons
+                    name={
+                      showConfirmPassword ? "eye-outline" : "eye-off-outline"
+                    }
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Password Requirements Note */}
+              <Text
+                style={{
+                  color: "#FFD700",
+                  fontSize: 12,
+                  textAlign: "center",
+                  marginTop: -10,
+                  marginBottom: 15,
+                  fontStyle: "italic",
+                }}
+              >
+                Password must contain: 1 uppercase, 1 lowercase, 1 number, 1
+                special character & minimum 8 characters
+              </Text>
 
               {/* Button */}
-              <TouchableOpacity style={styles.signupBtn} onPress={handleSignUp}>
-                <Text style={styles.signupBtnText}>Sign Up</Text>
+              <TouchableOpacity
+                style={signupStyles.signupBtn}
+                onPress={handleSignUp}
+              >
+                <Text style={signupStyles.signupBtnText}>Sign Up</Text>
               </TouchableOpacity>
             </View>
           </View>
