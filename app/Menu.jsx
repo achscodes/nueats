@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Modal,
   Alert,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderContext } from "./context/OrderContext";
 import { useAuth } from "./context/AuthContext"; // Import auth context
@@ -49,8 +49,56 @@ export default function Menu() {
   const [loginNotificationOpacity] = useState(new Animated.Value(0));
   const [showLoginNotification, setShowLoginNotification] = useState(false);
 
-  const { orderStartTime, prepTime, currentOrder } = useContext(OrderContext);
+  // Animation for coming from OrderStatus
+  const [slideUpAnim] = useState(new Animated.Value(0));
+
+  // Use the updated OrderContext
+  const { currentOrder, getTimeRemaining, storeOrderFromStatus, clearOrder } =
+    useContext(OrderContext);
+
   const { isGuest, getUserFirstName, user, logout } = useAuth(); // Get auth state
+
+  // Handle focus effect for navigation from OrderStatus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Check if coming from OrderStatus page
+      if (params.fromOrderStatus === "true") {
+        // Restore order from params if not already in context
+        if (params.orderId && !currentOrder) {
+          const orderParams = {
+            id: params.orderId,
+            status: params.orderStatus,
+            time: params.orderTime,
+            items: params.orderItems,
+            total: params.orderTotal,
+            payment: params.paymentMethod,
+            orderNumber: params.orderNumber, // Preserve the order number
+          };
+          storeOrderFromStatus(orderParams);
+        }
+
+        // Start animation from bottom
+        slideUpAnim.setValue(1);
+        Animated.timing(slideUpAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }).start();
+
+        // Clear the parameters to prevent re-triggering
+        router.setParams({
+          fromOrderStatus: undefined,
+          orderId: undefined,
+          orderStatus: undefined,
+          orderTime: undefined,
+          orderItems: undefined,
+          orderTotal: undefined,
+          paymentMethod: undefined,
+          orderNumber: undefined, // Clear this too
+        });
+      }
+    }, [params.fromOrderStatus])
+  );
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -134,11 +182,10 @@ export default function Menu() {
     setMenuItems(filteredItems);
   }, [selectedCategory, searchText]);
 
-  // Fix countdown calculation
+  // Get time left using the updated context method
   const getTimeLeft = () => {
-    if (!orderStartTime) return null;
-    const elapsed = Math.floor((Date.now() - orderStartTime) / 1000); // seconds
-    return Math.max(prepTime - elapsed, 0);
+    if (!currentOrder) return null;
+    return getTimeRemaining();
   };
 
   const timeLeft = getTimeLeft();
@@ -219,6 +266,24 @@ export default function Menu() {
         { text: "Cancel", style: "cancel" },
       ]);
     }
+  };
+
+  // Handle OrderStatus button press - UPDATED to preserve order number
+  const handleOrderStatusPress = () => {
+    if (!currentOrder) return;
+
+    router.push({
+      pathname: "/OrderStatus",
+      params: {
+        id: currentOrder.id,
+        time: currentOrder.time,
+        status: currentOrder.status,
+        items: encodeURIComponent(JSON.stringify(currentOrder.items)),
+        total: currentOrder.total.toString(),
+        payment: currentOrder.payment,
+        orderNumber: currentOrder.orderNumber, // IMPORTANT: Pass the existing order number
+      },
+    });
   };
 
   // Get display name
@@ -463,7 +528,21 @@ export default function Menu() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.menuContainer}>
+      <Animated.View
+        style={[
+          styles.menuContainer,
+          {
+            transform: [
+              {
+                translateY: slideUpAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, height * 0.3], // Start from 30% down the screen
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         {/* Header */}
         <View style={styles.menuHeader}>
           <Image
@@ -591,16 +670,22 @@ export default function Menu() {
           <Ionicons name="cart-outline" size={24} color="#ffffff" />
         </TouchableOpacity>
 
-        {/* Order Status Button */}
+        {/* Order Status Button - Updated with live countdown */}
         {currentOrder && (
           <TouchableOpacity
             style={styles.menuStatusButton}
-            onPress={() => router.push("/OrderStatus")}
+            onPress={handleOrderStatusPress}
             activeOpacity={0.9}
           >
             <Text style={styles.menuStatusBtnText}>
-              {timeLeft !== null
+              {timeLeft !== null && timeLeft > 0
                 ? `Check Order Status (${Math.ceil(timeLeft / 60)} min left)`
+                : currentOrder.status === "ready"
+                ? "Order Ready - Check Status"
+                : currentOrder.status === "received"
+                ? "Order Completed"
+                : currentOrder.status === "cancelled"
+                ? "Order Cancelled"
                 : "Check Order Status"}
             </Text>
           </TouchableOpacity>
@@ -608,7 +693,7 @@ export default function Menu() {
 
         {/* Guest Mode Modal */}
         {renderGuestModal()}
-      </View>
+      </Animated.View>
     </GestureHandlerRootView>
   );
 }

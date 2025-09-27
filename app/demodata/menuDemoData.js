@@ -17,6 +17,7 @@ export const MENU_ITEMS = [
     description:
       "Tender chicken simmered in soy sauce and vinegar. A classic Pinoy favorite!",
     price: 120,
+    prep_time: 35,
     category_id: 2,
     category: "meals",
     image:
@@ -31,6 +32,7 @@ export const MENU_ITEMS = [
     name: "Sinigang",
     description: "Sour tamarind broth with tender pork and fresh vegetables.",
     price: 150,
+    prep_time: 45,
     category_id: 2,
     category: "meals",
     image:
@@ -46,6 +48,7 @@ export const MENU_ITEMS = [
     description:
       "Rich peanut-based stew with oxtail and vegetables served with bagoong.",
     price: 180,
+    prep_time: 50,
     category_id: 2,
     category: "meals",
     image:
@@ -61,6 +64,7 @@ export const MENU_ITEMS = [
     description:
       "Crispy deep-fried pork belly served with liver sauce. A true fiesta dish!",
     price: 250,
+    prep_time: 40,
     category_id: 2,
     category: "meals",
     image:
@@ -76,6 +80,7 @@ export const MENU_ITEMS = [
     description:
       "Hearty beef stew in tomato sauce with potatoes and bell peppers.",
     price: 200,
+    prep_time: 55,
     category_id: 2,
     category: "meals",
     image:
@@ -90,6 +95,7 @@ export const MENU_ITEMS = [
     name: "Chicken Inasal",
     description: "Grilled chicken marinated in lemongrass and annatto oil.",
     price: 160,
+    prep_time: 30,
     category_id: 2,
     category: "meals",
     image:
@@ -107,6 +113,7 @@ export const MENU_ITEMS = [
     description:
       "Crispy spring rolls filled with seasoned ground pork and vegetables.",
     price: 80,
+    prep_time: 15,
     category_id: 3,
     category: "snacks",
     image:
@@ -122,6 +129,7 @@ export const MENU_ITEMS = [
     description:
       "Deep-fried quail eggs coated in orange batter with spicy vinegar dip.",
     price: 50,
+    prep_time: 12,
     category_id: 3,
     category: "snacks",
     image:
@@ -136,6 +144,7 @@ export const MENU_ITEMS = [
     name: "Chicken Wings",
     description: "Crispy buffalo wings with ranch dipping sauce.",
     price: 120,
+    prep_time: 20,
     category_id: 3,
     category: "snacks",
     image:
@@ -150,6 +159,7 @@ export const MENU_ITEMS = [
     name: "Cheese Sticks",
     description: "Golden fried cheese sticks served with marinara sauce.",
     price: 90,
+    prep_time: 10,
     category_id: 3,
     category: "snacks",
     image:
@@ -166,6 +176,7 @@ export const MENU_ITEMS = [
     name: "Fresh Buko Juice",
     description: "Refreshing young coconut water served chilled.",
     price: 60,
+    prep_time: 5,
     category_id: 4,
     category: "beverages",
     image:
@@ -181,6 +192,7 @@ export const MENU_ITEMS = [
     description:
       "Tangy Filipino lime juice, perfectly sweetened and refreshing.",
     price: 45,
+    prep_time: 3,
     category_id: 4,
     category: "beverages",
     image:
@@ -196,6 +208,7 @@ export const MENU_ITEMS = [
     description:
       "Rich Filipino barako coffee served over ice with condensed milk.",
     price: 75,
+    prep_time: 5,
     category_id: 4,
     category: "beverages",
     image: "https://www.pamperedchef.com/iceberg/com/recipe/2132087-lg.jpg",
@@ -209,6 +222,7 @@ export const MENU_ITEMS = [
     name: "Mango Shake",
     description: "Creamy mango shake made with fresh Philippine mangoes.",
     price: 85,
+    prep_time: 7,
     category_id: 4,
     category: "beverages",
     image:
@@ -226,6 +240,7 @@ export const MENU_ITEMS = [
     description:
       "Traditional Filipino shaved ice dessert with mixed fruits and ube ice cream.",
     price: 120,
+    prep_time: 15,
     category_id: 5,
     category: "desserts",
     image:
@@ -240,6 +255,7 @@ export const MENU_ITEMS = [
     name: "Leche Flan",
     description: "Silky smooth caramel custard dessert, a Filipino classic.",
     price: 80,
+    prep_time: 8,
     category_id: 5,
     category: "desserts",
     image:
@@ -254,6 +270,7 @@ export const MENU_ITEMS = [
     name: "Ube Ice Cream",
     description: "Creamy purple yam ice cream with a rich, nutty flavor.",
     price: 65,
+    prep_time: 3,
     category_id: 5,
     category: "desserts",
     image: "https://zhangcatherine.com/wp-content/uploads/2021/09/be.jpg",
@@ -267,6 +284,7 @@ export const MENU_ITEMS = [
     name: "Biko",
     description: "Sweet sticky rice cake topped with coconut caramel sauce.",
     price: 55,
+    prep_time: 10,
     category_id: 5,
     category: "desserts",
     image:

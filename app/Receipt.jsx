@@ -1,88 +1,133 @@
-import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import React, { useRef } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import styles from "./src/style"; 
+import { captureRef } from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
+import receiptStyles from "./src/Receipt.js";
 
 export default function Receipt() {
   const router = useRouter();
-  const { items, amount, paymentMethod, date, refNo } = useLocalSearchParams();
+  const { items, amount, paymentMethod, date, refNo, orderNumber } =
+    useLocalSearchParams();
+  const receiptRef = useRef();
 
-  // ✅ Parse items safely
+  // Use orderNumber if available, fallback to refNo
+  const displayOrderNumber = orderNumber || refNo;
+
+  // Parse items safely
   const parsedItems = items ? JSON.parse(items) : [];
 
+  const downloadReceipt = async () => {
+    try {
+      // Capture the receipt view as image
+      const uri = await captureRef(receiptRef, {
+        format: "png",
+        quality: 0.9,
+        result: "tmpfile",
+      });
+
+      // Share the image directly
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "image/png",
+          dialogTitle: "Save Receipt",
+          UTI: "public.png",
+        });
+      } else {
+        Alert.alert(
+          "Sharing Not Available",
+          "Unable to share receipt on this device."
+        );
+      }
+    } catch (error) {
+      console.error("Error downloading receipt:", error);
+      Alert.alert(
+        "Download Failed",
+        "Sorry, we couldn't download your receipt. Please try again."
+      );
+    }
+  };
+
   return (
-    <View style={styles.receiptContainer}>
+    <View style={receiptStyles.receiptContainer}>
       {/* Header */}
-      <View style={styles.receiptHeader}>
+      <View style={receiptStyles.receiptHeader}>
         <TouchableOpacity onPress={() => router.push("/Menu")}>
           <Ionicons name="close" size={28} color="#FFD700" />
         </TouchableOpacity>
-        <Text style={styles.receiptHeaderText}>RECEIPT</Text>
+        <Text style={receiptStyles.receiptHeaderText}>RECEIPT</Text>
         <View style={{ width: 28 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.receiptCardContainer}>
-        {/* Circle check */}
-        <View style={styles.receiptCircle}>
-          <Ionicons name="checkmark" size={32} color="#2c3e91" />
-        </View>
+      <ScrollView contentContainerStyle={receiptStyles.receiptCardContainer}>
+        {/* Receipt Content - This will be captured */}
+        <View ref={receiptRef} style={receiptStyles.receiptCaptureArea}>
+          {/* Circle check */}
+          <View style={receiptStyles.receiptCircle}>
+            <Ionicons name="checkmark" size={32} color="#2c3e91" />
+          </View>
 
-        {/* Card */}
-        <View style={styles.receiptCard}>
-          <Text style={styles.receiptStoreName}>Food Stall</Text>
-          <Text style={styles.receiptPaymentMethod}>
-            Paid Via {paymentMethod}
-          </Text>
+          {/* Card */}
+          <View style={receiptStyles.receiptCard}>
+            <Text style={receiptStyles.receiptStoreName}>NUeats</Text>
+            <Text style={receiptStyles.receiptPaymentMethod}>
+              Paid Via {paymentMethod}
+            </Text>
 
-          {/* Items */}
-          {parsedItems.map((item, index) => (
-            <View style={styles.receiptItemRow} key={index}>
-              <Text style={styles.receiptItemText}>
-                {item.name}
+            {/* Items */}
+            {parsedItems.map((item, index) => (
+              <View style={receiptStyles.receiptItemRow} key={index}>
+                <Text style={receiptStyles.receiptItemText}>{item.name}</Text>
+                <Text style={receiptStyles.receiptItemPrice}>
+                  ₱{(item.price * item.quantity).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+
+            <View style={receiptStyles.receiptSeparator} />
+
+            {/* Total */}
+            <View style={receiptStyles.receiptItemRow}>
+              <Text
+                style={[receiptStyles.receiptItemText, { fontWeight: "bold" }]}
+              >
+                Amount
               </Text>
-              <Text style={styles.receiptItemPrice}>
-                ₱{item.price * item.quantity}
+              <Text
+                style={[receiptStyles.receiptItemPrice, { fontWeight: "bold" }]}
+              >
+                ₱{amount}
               </Text>
             </View>
-          ))}
 
-          <View style={styles.receiptSeparator} />
+            <View style={receiptStyles.receiptSeparator} />
 
-          {/* Total */}
-          <View style={styles.receiptItemRow}>
-            <Text style={[styles.receiptItemText, { fontWeight: "bold" }]}>
-              Amount
-            </Text>
-            <Text style={[styles.receiptItemPrice, { fontWeight: "bold" }]}>
-              ₱{amount}
-            </Text>
-          </View>
+            {/* Date */}
+            <View style={receiptStyles.receiptInfoBlock}>
+              <Text style={receiptStyles.receiptLabel}>
+                Date of Transaction
+              </Text>
+              <Text style={receiptStyles.receiptValue}>{date}</Text>
+            </View>
 
-          <View style={styles.receiptSeparator} />
-
-          {/* Date */}
-          <View style={styles.receiptInfoBlock}>
-            <Text style={styles.receiptLabel}>Date of Transaction</Text>
-            <Text style={styles.receiptValue}>{date}</Text>
-          </View>
-
-          {/* Ref No */}
-          <View style={styles.receiptInfoBlock}>
-            <Text style={styles.receiptLabel}>Ref No.</Text>
-            <Text style={styles.receiptValue}>{refNo}</Text>
+            {/* Order Number */}
+            <View style={receiptStyles.receiptInfoBlock}>
+              <Text style={receiptStyles.receiptLabel}>Order No.</Text>
+              <Text style={receiptStyles.receiptValue}>
+                {displayOrderNumber}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Download button */}
-        <TouchableOpacity style={styles.receiptDownloadBtn}>
+        {/* Download button - Outside capture area */}
+        <TouchableOpacity
+          style={receiptStyles.receiptDownloadBtn}
+          onPress={downloadReceipt}
+        >
           <Ionicons name="download-outline" size={20} color="#FFD700" />
-          <Text style={styles.receiptDownloadText}>Download</Text>
+          <Text style={receiptStyles.receiptDownloadText}>Download</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

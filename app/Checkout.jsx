@@ -7,12 +7,11 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
-  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { CartContext } from "./context/CartContext";
 import { OrderContext } from "./context/OrderContext";
-import checkoutStyles from "./src/Checkout.js"; // ✅ Import dedicated checkout styles
+import checkoutStyles from "./src/Checkout.js"; // Import dedicated checkout styles
 
 export default function Checkout() {
   const router = useRouter();
@@ -26,11 +25,13 @@ export default function Checkout() {
 
   const { cartItems, increaseQty, decreaseQty, clearCart, addToCart } =
     cartContext;
-  const { setCurrentOrder } = orderContext;
+
+  // ✅ Use createOrder instead of setCurrentOrder
+  const { createOrder } = orderContext;
 
   const [selectedPayment, setSelectedPayment] = useState("Gcash");
 
-  // ✅ handle reorder items from params
+  // Handle reorder items from params
   useEffect(() => {
     if (params.reorderItems) {
       try {
@@ -50,33 +51,55 @@ export default function Checkout() {
     0
   );
 
-  // ✅ place order
+  // Calculate prep time based on items
+  const calculatePrepTime = () => {
+    if (cartItems.length === 0) return 15;
+
+    // Get the maximum prep time from all items (they can be prepared in parallel)
+    const maxPrepTime = Math.max(
+      ...cartItems.map((item) => item.prep_time || 15)
+    );
+
+    // Add queue time (2-5 minutes)
+    const queueTime = 5;
+
+    return maxPrepTime + queueTime;
+  };
+
+  // ✅ FIXED: Place order with proper order number generation
   const handleOrder = () => {
     if (cartItems.length === 0) return;
 
     const orderId = Date.now().toString();
     const orderDate = new Date().toISOString();
+    const prepTime = calculatePrepTime();
 
-    setCurrentOrder({
+    // ✅ Use createOrder - this will generate the unique order number
+    const orderData = {
       id: orderId,
       items: cartItems,
       total: totalAmount,
       payment: selectedPayment,
-      date: orderDate,
-      store: "Food Stall",
-      status: "pending",
-    });
+      time: orderDate,
+      status: "preparing", // Set initial status as preparing
+      prepTime: prepTime,
+      // ✅ DON'T include orderNumber - let createOrder generate it
+    };
 
-    router.push({
+    // ✅ Create the order (this generates the unique order number)
+    const createdOrder = createOrder(orderData);
+
+    // ✅ Navigate to OrderStatus with the generated order number
+    router.replace({
       pathname: "/OrderStatus",
       params: {
-        id: orderId,
-        time: orderDate,
-        status: "pending",
-        items: encodeURIComponent(JSON.stringify(cartItems)),
-        total: totalAmount.toString(),
-        payment: selectedPayment,
-        store: "Food Stall",
+        id: createdOrder.id,
+        time: createdOrder.time,
+        status: createdOrder.status,
+        items: encodeURIComponent(JSON.stringify(createdOrder.items)),
+        total: createdOrder.total.toString(),
+        payment: createdOrder.payment,
+        orderNumber: createdOrder.orderNumber, // ✅ Pass the generated order number
       },
     });
 
@@ -101,7 +124,7 @@ export default function Checkout() {
 
   const paymentMethods = [
     {
-      label: "Gcash •••••••••••7143",
+      label: "Gcash ••••••••••••7143",
       value: "Gcash",
       icon: require("../assets/images/Gcash.png"),
     },
@@ -117,42 +140,60 @@ export default function Checkout() {
     },
   ];
 
-  return (
-    <SafeAreaView style={checkoutStyles.container}>
-      {/* Header */}
-      <View style={checkoutStyles.checkoutHeader}>
-        <TouchableOpacity
-          onPress={() => router.replace("/Cart")}
-          style={checkoutStyles.checkoutBackButton}
-        >
-          <Text style={checkoutStyles.checkoutBackArrow}>←</Text>
-        </TouchableOpacity>
+  // Create sections for FlatList rendering
+  const sections = [
+    {
+      type: "items",
+      data: cartItems,
+    },
+    {
+      type: "payment",
+      data: paymentMethods,
+    },
+  ];
 
-        <Text style={checkoutStyles.checkoutHeaderText}>CHECKOUT</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-        {/* Items */}
+  const renderSection = ({ item, index }) => {
+    if (item.type === "items") {
+      return (
         <View style={checkoutStyles.itemsCard}>
           <Text style={checkoutStyles.sectionTitle}>Your Items</Text>
-          <FlatList
-            data={cartItems}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id || item.name}
-            ListEmptyComponent={
-              <Text
-                style={{ textAlign: "center", marginTop: 20, color: "#777" }}
+          {item.data.length === 0 ? (
+            <Text style={{ textAlign: "center", marginTop: 20, color: "#777" }}>
+              Your cart is empty
+            </Text>
+          ) : (
+            item.data.map((cartItem, idx) => (
+              <View
+                key={cartItem.id || cartItem.name}
+                style={checkoutStyles.checkoutItemCard}
               >
-                Your cart is empty
-              </Text>
-            }
-          />
+                <Image
+                  source={{ uri: cartItem.image }}
+                  style={checkoutStyles.checkoutItemImage}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={checkoutStyles.checkoutItemName}>
+                    {cartItem.name}
+                  </Text>
+                  <Text style={checkoutStyles.checkoutItemQty}>
+                    x{cartItem.quantity}
+                  </Text>
+                </View>
+                <Text style={checkoutStyles.checkoutItemPrice}>
+                  ₱{cartItem.price * cartItem.quantity}
+                </Text>
+              </View>
+            ))
+          )}
         </View>
+      );
+    }
 
-        {/* Payment */}
+    if (item.type === "payment") {
+      return (
         <View style={checkoutStyles.paymentSection}>
           <Text style={checkoutStyles.paymentTitle}>Payment Method</Text>
-          {paymentMethods.map((method) => (
+          {item.data.map((method) => (
             <TouchableOpacity
               key={method.value}
               style={checkoutStyles.method}
@@ -168,7 +209,34 @@ export default function Checkout() {
             </TouchableOpacity>
           ))}
         </View>
-      </ScrollView>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <SafeAreaView style={checkoutStyles.container}>
+      {/* Header */}
+      <View style={checkoutStyles.checkoutHeader}>
+        <TouchableOpacity
+          onPress={() => router.replace("/Cart")}
+          style={checkoutStyles.checkoutBackButton}
+        >
+          <Text style={checkoutStyles.checkoutBackArrow}>←</Text>
+        </TouchableOpacity>
+
+        <Text style={checkoutStyles.checkoutHeaderText}>CHECKOUT</Text>
+      </View>
+
+      {/* Replace ScrollView + FlatList with single FlatList */}
+      <FlatList
+        data={sections}
+        renderItem={renderSection}
+        keyExtractor={(item, index) => `${item.type}-${index}`}
+        contentContainerStyle={{ paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* Total + Order Button */}
       <View style={checkoutStyles.bottomSection}>

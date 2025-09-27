@@ -5,79 +5,122 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
-import { feedback as styles } from "./src/style";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { feedbackStyles } from "./src/Feedback.js";
 
 const FeedbackScreen = () => {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  // Get order details from params
+  const {
+    orderNumber = "N/A",
+    orderId,
+    orderItems,
+    orderTotal,
+    paymentMethod,
+    orderTime,
+  } = params;
 
   const submitFeedback = () => {
-    console.log("Feedback submitted:", feedback, "Rating:", rating);
-    router.push("/Menu");
-  };
+    // Validate required fields
+    if (rating === 0) {
+      Alert.alert(
+        "Rating Required",
+        "Please select a star rating before submitting."
+      );
+      return;
+    }
 
-  const skipFeedback = () => {
-    console.log("Skipped feedback");
-    router.push("/Menu");
+    if (feedback.trim() === "") {
+      Alert.alert(
+        "Feedback Required",
+        "Please provide your feedback before submitting."
+      );
+      return;
+    }
+
+    console.log("Feedback submitted:", feedback, "Rating:", rating);
+
+    // Navigate to Receipt page with order details
+    router.push({
+      pathname: "/Receipt",
+      params: {
+        items: orderItems,
+        amount: orderTotal,
+        paymentMethod: paymentMethod || "Cash",
+        date: orderTime
+          ? new Date(orderTime).toLocaleDateString()
+          : new Date().toLocaleDateString(),
+        refNo: orderNumber,
+        orderNumber: orderNumber,
+      },
+    });
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
+    <ScrollView contentContainerStyle={feedbackStyles.feedbackScrollContainer}>
+      <View style={feedbackStyles.feedbackMainContainer}>
         {/* Check Circle */}
-        <View style={styles.checkCircle}>
+        <View style={feedbackStyles.feedbackCheckCircle}>
           <Icon name="check" size={40} color="#500099" />
         </View>
 
         {/* Texts */}
-        <Text style={styles.thankYouText}>THANK YOU!</Text>
-        <Text style={styles.orderCompletedText}>Order Completed!</Text>
+        <Text style={feedbackStyles.feedbackThankYouText}>THANK YOU!</Text>
+        <Text style={feedbackStyles.feedbackOrderCompletedText}>
+          Order Completed!
+        </Text>
+        <Text style={feedbackStyles.feedbackOrderNumberText}>
+          Order #{orderNumber}
+        </Text>
 
         {/* Rating Stars */}
-        <View style={styles.ratingContainer}>
+        <View style={feedbackStyles.feedbackRatingContainer}>
           {[1, 2, 3, 4, 5].map((star) => (
             <TouchableOpacity key={star} onPress={() => setRating(star)}>
               <Icon
                 name="star"
                 size={35}
                 color={star <= rating ? "#FFCC00" : "gray"}
-                style={styles.star}
+                style={feedbackStyles.feedbackStar}
               />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Feedback Box */}
-        <View style={styles.feedbackBox}>
+        <View style={feedbackStyles.feedbackInputBox}>
           <Icon
             name="edit"
             size={20}
             color="#500099"
-            style={{ marginRight: 8 }}
+            style={{ marginRight: 8, marginTop: 2 }}
           />
           <TextInput
-            style={styles.feedbackInput}
+            style={feedbackStyles.feedbackTextInput}
             placeholder="Leave feedback"
             placeholderTextColor="#500099"
             multiline
             value={feedback}
             onChangeText={setFeedback}
+            numberOfLines={4}
           />
         </View>
 
-        {/* Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.submitButton} onPress={submitFeedback}>
-            <Text style={styles.buttonText}>SUBMIT</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.skipButton} onPress={skipFeedback}>
-            <Text style={styles.buttonText}>SKIP</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Submit Button Only */}
+        <TouchableOpacity
+          style={feedbackStyles.feedbackSubmitButtonFull}
+          onPress={submitFeedback}
+          activeOpacity={0.8}
+        >
+          <Text style={feedbackStyles.feedbackButtonText}>SUBMIT</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

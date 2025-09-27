@@ -33,6 +33,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#2c3e91"
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow NUeats to access your photos to save receipts.",
+          "savePhotosPermission": "Allow NUeats to save receipts to your photo library.",
+          "isAccessMediaLocationEnabled": true
+        }
       ]
     ],
     "experiments": {

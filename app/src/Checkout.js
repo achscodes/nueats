@@ -41,6 +41,7 @@ const checkoutStyles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 15,
     paddingVertical: 12,
+    paddingTop: 30,
     backgroundColor: CHECKOUT_COLORS.primaryDark,
   },
   checkoutBackButton: {
@@ -190,6 +191,7 @@ const checkoutStyles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: "center",
+    marginBottom: 40,
     ...CHECKOUT_GLOBAL.shadow,
   },
   orderText: {
