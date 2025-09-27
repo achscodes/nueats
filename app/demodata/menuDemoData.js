@@ -34,7 +34,7 @@ export const MENU_ITEMS = [
     category_id: 2,
     category: "meals",
     image:
-      "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=400&fit=crop",
+      "https://charisseyu.com/wp-content/uploads/2023/12/IMG_0135-scaled.jpg",
     is_featured: true,
     is_available: true,
     created_at: "2024-01-15",
@@ -49,7 +49,7 @@ export const MENU_ITEMS = [
     category_id: 2,
     category: "meals",
     image:
-      "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=400&fit=crop",
+      "https://www.kawalingpinoy.com/wp-content/uploads/2014/01/kare-kare-with-oxtail-2.jpg",
     is_featured: true,
     is_available: true,
     created_at: "2024-01-15",
@@ -64,7 +64,7 @@ export const MENU_ITEMS = [
     category_id: 2,
     category: "meals",
     image:
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop",
+      "https://images.yummy.ph/yummy/uploads/2021/06/spicylechonkawalirecipe-web.jpg",
     is_featured: true,
     is_available: true,
     created_at: "2024-01-15",
@@ -93,7 +93,7 @@ export const MENU_ITEMS = [
     category_id: 2,
     category: "meals",
     image:
-      "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=400&h=400&fit=crop",
+      "https://cdn.sanity.io/images/f3knbc2s/production/19481ad7bcff23ce2904eeb435f5ddc2c05df796-2500x1600.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -110,7 +110,7 @@ export const MENU_ITEMS = [
     category_id: 3,
     category: "snacks",
     image:
-      "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=400&fit=crop",
+      "https://graceland.ph/wp-content/uploads/2023/05/LUMPIA-SHANGHAI.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -125,7 +125,7 @@ export const MENU_ITEMS = [
     category_id: 3,
     category: "snacks",
     image:
-      "https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?w=400&h=400&fit=crop",
+      "https://eggsallways.com/wp-content/uploads/2025/05/kwek-kwek-10-320x480.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -139,7 +139,7 @@ export const MENU_ITEMS = [
     category_id: 3,
     category: "snacks",
     image:
-      "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=400&h=400&fit=crop",
+      "https://asset.homechef.com/uploads/meal/plated/2705/homechef_Sambal_Chicken_Wings_Reshoot__2_of_3_.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -153,7 +153,7 @@ export const MENU_ITEMS = [
     category_id: 3,
     category: "snacks",
     image:
-      "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=400&fit=crop",
+      "https://i0.wp.com/www.angsarap.net/wp-content/uploads/2014/01/cheese-sticks-wide.jpg?ssl=1",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -169,7 +169,7 @@ export const MENU_ITEMS = [
     category_id: 4,
     category: "beverages",
     image:
-      "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&h=400&fit=crop",
+      "https://i.pinimg.com/736x/f5/7b/9c/f57b9c002ba6c57f8267b5f747efabfd.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -184,7 +184,7 @@ export const MENU_ITEMS = [
     category_id: 4,
     category: "beverages",
     image:
-      "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=400&h=400&fit=crop",
+      "https://www.kawalingpinoy.com/wp-content/uploads/2013/05/calamansi-juice.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -198,8 +198,7 @@ export const MENU_ITEMS = [
     price: 75,
     category_id: 4,
     category: "beverages",
-    image:
-      "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=400&fit=crop",
+    image: "https://www.pamperedchef.com/iceberg/com/recipe/2132087-lg.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -213,7 +212,7 @@ export const MENU_ITEMS = [
     category_id: 4,
     category: "beverages",
     image:
-      "https://images.unsplash.com/photo-1570831739435-6601aa3fa4fb?w=400&h=400&fit=crop",
+      "https://tastyoven.com/wp-content/uploads/2022/06/mango-shake-image.jpeg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -230,7 +229,7 @@ export const MENU_ITEMS = [
     category_id: 5,
     category: "desserts",
     image:
-      "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=400&fit=crop",
+      "https://pilipinasrecipes.com/wp-content/uploads/2018/03/Filipino-Halo-Halo-Recipe.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -244,7 +243,7 @@ export const MENU_ITEMS = [
     category_id: 5,
     category: "desserts",
     image:
-      "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&h=400&fit=crop",
+      "https://www.kawalingpinoy.com/wp-content/uploads/2017/04/whole-eggs-leche-flan-2.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -257,8 +256,7 @@ export const MENU_ITEMS = [
     price: 65,
     category_id: 5,
     category: "desserts",
-    image:
-      "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?w=400&h=400&fit=crop",
+    image: "https://zhangcatherine.com/wp-content/uploads/2021/09/be.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",
@@ -272,7 +270,7 @@ export const MENU_ITEMS = [
     category_id: 5,
     category: "desserts",
     image:
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop",
+      "https://www.kawalingpinoy.com/wp-content/uploads/2018/09/bibingkang-malagkit-11-500x500.jpg",
     is_featured: false,
     is_available: true,
     created_at: "2024-01-15",

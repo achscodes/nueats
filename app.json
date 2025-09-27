@@ -4,7 +4,7 @@
     "slug": "NuEats",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/NuEatsLogo.png",
     "scheme": "nueats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,8 +13,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/NuEatsLogo.png",
+        "backgroundColor": "#2c3e91"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.NuEats"
@@ -29,9 +29,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "icon": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/NuEatsLogo.png",
           "resizeMode": "contain",
           "backgroundColor": "#2c3e91"
         }

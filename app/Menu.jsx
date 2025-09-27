@@ -10,10 +10,13 @@ import {
   ScrollView,
   Animated,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderContext } from "./context/OrderContext";
+import { useAuth } from "./context/AuthContext"; // Import auth context
 // Import React Icons equivalent - using Ionicons from Expo
 import { Ionicons } from "@expo/vector-icons";
 // Import styles and demo data
@@ -24,11 +27,13 @@ import {
   getFeaturedItems,
   MENU_ITEMS,
 } from "./demodata/menuDemoData.js";
+import { demoHelpers } from "./demodata/profileDemoData.js";
 
 const { height, width } = Dimensions.get("window");
 
 export default function Menu() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [menuItems, setMenuItems] = useState([]);
@@ -36,8 +41,61 @@ export default function Menu() {
   const [isLoading, setIsLoading] = useState(true);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [isGridLayout, setIsGridLayout] = useState(false); // New state for layout toggle
+  const [guestModalVisible, setGuestModalVisible] = useState(false); // Guest mode modal
+  const [currentUser, setCurrentUser] = useState(null); // User data from demo
+
+  // Animation for sliding notification
+  const [loginNotificationAnim] = useState(new Animated.Value(-100)); // Start above screen
+  const [loginNotificationOpacity] = useState(new Animated.Value(0));
+  const [showLoginNotification, setShowLoginNotification] = useState(false);
 
   const { orderStartTime, prepTime, currentOrder } = useContext(OrderContext);
+  const { isGuest, getUserFirstName, user, logout } = useAuth(); // Get auth state
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    if (params.userId && !isGuest) {
+      const userData = demoHelpers.getUserById(params.userId);
+      if (userData) {
+        setCurrentUser(userData);
+        setShowLoginNotification(true);
+
+        // Trigger sliding animation
+        Animated.parallel([
+          Animated.timing(loginNotificationAnim, {
+            toValue: 0, // Slide to position
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(loginNotificationOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Auto hide after 5 seconds
+        const hideTimer = setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(loginNotificationOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(loginNotificationAnim, {
+              toValue: -100,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setShowLoginNotification(false);
+          });
+        }, 5000);
+
+        return () => clearTimeout(hideTimer);
+      }
+    }
+  }, [params.userId, isGuest]);
 
   // Simulate database fetch on component mount
   useEffect(() => {
@@ -85,7 +143,7 @@ export default function Menu() {
 
   const timeLeft = getTimeLeft();
 
-  // Navigate to order page with params
+  // Navigate to order page with params and auth status
   const handleFoodPress = (item) => {
     router.push({
       pathname: "/Order",
@@ -96,6 +154,8 @@ export default function Menu() {
         price: item.price.toString(),
         image: item.image,
         category: item.category,
+        isGuest: isGuest.toString(),
+        userId: currentUser?.id || user?.id || "",
       },
     });
   };
@@ -113,6 +173,65 @@ export default function Menu() {
   // Format price in Philippine Peso
   const formatPrice = (price) => {
     return `₱${price.toFixed(0)}`;
+  };
+
+  // Handle settings press with guest mode check
+  const handleSettingsPress = () => {
+    if (isGuest) {
+      setGuestModalVisible(true);
+    } else {
+      // Always pass the userId from currentUser or fallback to user
+      const userIdToPass = currentUser?.id || user?.id || "";
+      router.push({
+        pathname: "/Setting",
+        params: {
+          userId: userIdToPass,
+          userName: currentUser?.name || user?.name || "",
+          userEmail: currentUser?.email || user?.email || "",
+        },
+      });
+    }
+  };
+
+  // Handle login button press
+  const handleLoginPress = () => {
+    setGuestModalVisible(false);
+    router.push("/Login"); // Navigate to login page
+  };
+
+  // Handle sign up button press
+  const handleSignUpPress = () => {
+    setGuestModalVisible(false);
+    router.push("/Termsandconditions"); // Navigate to sign up page
+  };
+
+  // Handle user profile press (show menu with logout option)
+  const handleUserPress = () => {
+    if (!isGuest && currentUser) {
+      // Create a simple action sheet alternative
+      Alert.alert(`Hello, ${currentUser.name}!`, "What would you like to do?", [
+        { text: "View Profile", onPress: () => router.push("/Profile") },
+        {
+          text: "Order History",
+          onPress: () => router.push("/OrderHistory"),
+        },
+        { text: "Logout", onPress: logout, style: "destructive" },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (isGuest) return "Guest";
+    if (currentUser) return currentUser.name.split(" ")[0]; // First name only
+    return getUserFirstName();
+  };
+
+  // Get full display name for notification
+  const getFullDisplayName = () => {
+    if (currentUser) return currentUser.name;
+    return user?.name || "User";
   };
 
   // Render category filter buttons
@@ -270,6 +389,78 @@ export default function Menu() {
     </View>
   );
 
+  // Guest Mode Modal
+  const renderGuestModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={guestModalVisible}
+      onRequestClose={() => setGuestModalVisible(false)}
+    >
+      <View style={styles.menuModalOverlay}>
+        <View style={styles.menuModalContainer}>
+          <View style={styles.menuModalHeader}>
+            <Ionicons name="person-outline" size={50} color="#FFD700" />
+            <Text style={styles.menuModalTitle}>Guest Mode</Text>
+          </View>
+
+          <Text style={styles.menuModalText}>
+            You are currently browsing in guest mode. To access settings and all
+            features, please create an account. If you already have an account,
+            please log in.
+          </Text>
+
+          <View style={styles.menuModalButtons}>
+            <TouchableOpacity
+              style={styles.menuModalLoginButton}
+              onPress={handleLoginPress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuModalLoginText}>Log In</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuModalSignUpButton}
+              onPress={handleSignUpPress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuModalSignUpText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.menuModalCloseButton}
+            onPress={() => setGuestModalVisible(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.menuModalCloseText}>Continue as Guest</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Render login notification
+  const renderLoginNotification = () =>
+    showLoginNotification && (
+      <Animated.View
+        style={[
+          styles.menuLoginNotification,
+          {
+            transform: [{ translateY: loginNotificationAnim }],
+            opacity: loginNotificationOpacity,
+          },
+        ]}
+      >
+        <View style={styles.menuLoginNotificationContent}>
+          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+          <Text style={styles.menuLoginNotificationText}>
+            Logged in as {getFullDisplayName()}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.menuContainer}>
@@ -279,17 +470,25 @@ export default function Menu() {
             source={require("../assets/images/NuEatsLogov3.png")}
             style={styles.menuLogo}
           />
-          <TouchableOpacity
-            onPress={() => router.push("/Setting")}
-            style={styles.menuSettingsWrapper}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-outline" size={24} color="#FFD700" />
-          </TouchableOpacity>
+          <View style={styles.menuHeaderRight}>
+            <Text style={styles.menuGuestText}>{getDisplayName()}</Text>
+            <TouchableOpacity
+              onPress={handleSettingsPress}
+              style={styles.menuSettingsWrapper}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={24} color="#FFD700" />
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {/* Login Notification - Slides from under header */}
+        {renderLoginNotification()}
+
         {/* Welcome */}
-        <Text style={styles.menuWelcome}>Welcome!</Text>
+        <Text style={styles.menuWelcome}>
+          Welcome{!isGuest ? `, ${getDisplayName()}` : ""}!
+        </Text>
         <Text style={styles.menuSubText}>Let's order your Food!</Text>
 
         {/* Search Bar */}
@@ -406,6 +605,9 @@ export default function Menu() {
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Guest Mode Modal */}
+        {renderGuestModal()}
       </View>
     </GestureHandlerRootView>
   );

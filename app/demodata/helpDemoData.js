@@ -47,34 +47,44 @@ export const helpSupportDemoData = {
 
   faqData: [
     {
-      question: "How can I track my order?",
+      question: "Can I schedule my order for a later time?",
       answer:
-        "Go to 'Order History' in Settings or check the Order Status page after placing your order. You'll receive real-time updates about your pickup status.",
+        "Yes! During checkout, you can select a preferred pickup time. We recommend arriving within 10 minutes of your selected time to avoid delays.",
     },
     {
-      question: "What if my order is late?",
+      question: "What happens if I miss my pickup time?",
       answer:
-        "If your order is ready later than the estimated time, please contact our customer service during business hours (8 AM - 5 PM). We'll provide updates and priority assistance.",
+        "Your order will be held for up to 30 minutes. After that, it may be discarded for food safety reasons. Please contact customer service if you're running late.",
     },
     {
-      question: "Can I modify my order after placing it?",
+      question: "Do I need an account to place an order?",
       answer:
-        "Orders can be modified within 2 minutes of placing. After that, please contact customer service immediately during operating hours - we'll try our best to accommodate changes.",
+        "Yes, signing in with your NU email ensures secure transactions and lets you track your order history and access exclusive features.",
     },
     {
-      question: "How do refunds work?",
+      question: "What if I have food allergies?",
       answer:
-        "Refunds are processed within 3-5 business days. For cancelled orders, full refunds are given. For quality issues, we offer replacements or partial refunds based on our store policy.",
+        "Please check item descriptions carefully. If you're unsure, contact the stall directly before placing your order to confirm ingredients.",
     },
     {
-      question: "What are your operating hours?",
+      question: "Can I request utensils or condiments?",
       answer:
-        "We're open Monday through Saturday from 8:00 AM to 5:00 PM. We're closed on Sundays and holidays. Customer service is available during operating hours only.",
+        "Yes! Use the 'Add Notes' section before checkout to request utensils, condiments, or any special instructions.",
     },
     {
-      question: "Do you accept online payments?",
+      question: "Is NUeats available on both Android and iOS?",
       answer:
-        "Yes! We accept cash payments, credit/debit cards, and PayMongo for your convenience. Payment is processed when you place your order.",
+        "Yes! NUeats is available for download on the App Store and Google Play. Make sure to keep your app updated for the latest features.",
+    },
+    {
+      question: "What should I do if the app crashes during checkout?",
+      answer:
+        "Check your Order History and payment method. If no order appears, your payment likely didn’t go through. You can try again or contact support.",
+    },
+    {
+      question: "Can I pay at pickup instead of online?",
+      answer:
+        "Yes! NUeats allows you to choose between paying online or at pickup. Just select the 'cash' payment during checkout. Please arrive on time to avoid delays.",
     },
   ],
 };

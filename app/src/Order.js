@@ -311,6 +311,95 @@ const orderStyles = StyleSheet.create({
     marginLeft: 5,
   },
 
+  /* ===== Guest Mode Modal ===== */
+  orderModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  orderModalContainer: {
+    backgroundColor: ORDER_COLORS.white,
+    borderRadius: 25,
+    padding: 30,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    ...ORDER_GLOBAL.shadowStrong,
+    elevation: 10,
+  },
+
+  orderModalHeader: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  orderModalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: ORDER_COLORS.primary,
+    marginTop: 10,
+    textAlign: "center",
+  },
+
+  orderModalText: {
+    fontSize: 16,
+    color: ORDER_COLORS.gray,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+
+  orderModalButtons: {
+    width: "100%",
+    marginBottom: 20,
+  },
+
+  orderModalLoginButton: {
+    backgroundColor: ORDER_COLORS.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginBottom: 15,
+    ...ORDER_GLOBAL.shadow,
+  },
+
+  orderModalLoginText: {
+    color: ORDER_COLORS.white,
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  orderModalSignUpButton: {
+    backgroundColor: ORDER_COLORS.accent,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    ...ORDER_GLOBAL.shadow,
+  },
+
+  orderModalSignUpText: {
+    color: ORDER_COLORS.primaryDark,
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  orderModalCloseButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+
+  orderModalCloseText: {
+    color: ORDER_COLORS.gray,
+    fontSize: 14,
+    textAlign: "center",
+    textDecorationLine: "underline",
+  },
+
   /* ===== Additional Styles for Effects ===== */
   orderGlowEffect: {
     shadowColor: ORDER_COLORS.accent,

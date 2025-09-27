@@ -9,10 +9,12 @@ import {
   Animated,
   Dimensions,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { CartContext } from "./context/CartContext.jsx";
+import { useAuth } from "./context/AuthContext"; // Import auth context
 import { LinearGradient } from "expo-linear-gradient";
 // Import the new dedicated Order styles
 import orderStyles, { ORDER_COLORS } from "./src/Order.js";
@@ -23,9 +25,15 @@ const IMAGE_HEIGHT = screenHeight * 0.4;
 
 export default function Order() {
   const [quantity, setQuantity] = useState(1);
+  const [guestModalVisible, setGuestModalVisible] = useState(false); // Guest mode modal
   const router = useRouter();
-  const { id, name, description, price, image } = useLocalSearchParams();
+  const { id, name, description, price, image, isGuest, userId } =
+    useLocalSearchParams();
   const { addToCart } = useContext(CartContext);
+  const { isGuest: authIsGuest, user, getUserFirstName } = useAuth(); // Get auth state
+
+  // Use auth context state, fallback to params if needed
+  const isGuestMode = authIsGuest || isGuest === "true";
 
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -94,6 +102,11 @@ export default function Order() {
   };
 
   const handleAddToCart = () => {
+    if (isGuestMode) {
+      setGuestModalVisible(true);
+      return;
+    }
+
     // Add to cart animation
     Animated.sequence([
       Animated.timing(buttonScale, {
@@ -111,9 +124,78 @@ export default function Order() {
     addToCart({ id, name, price: Number(price), image }, quantity);
     Alert.alert(
       "Added to Cart",
-      `${quantity} ${name}${quantity > 1 ? "s" : ""} added!`
+      `${quantity} ${name}${quantity > 1 ? "s" : ""} added to your cart!`,
+      [
+        { text: "Continue Shopping", onPress: () => router.back() },
+        { text: "View Cart", onPress: () => router.push("/Cart") },
+      ]
     );
   };
+
+  // Handle login button press
+  const handleLoginPress = () => {
+    setGuestModalVisible(false);
+    router.push("/Login"); // Navigate to login page
+  };
+
+  // Handle sign up button press
+  const handleSignUpPress = () => {
+    setGuestModalVisible(false);
+    router.push("/Termsandconditions"); // Navigate to sign up page
+  };
+
+  // Guest Mode Modal
+  const renderGuestModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={guestModalVisible}
+      onRequestClose={() => setGuestModalVisible(false)}
+    >
+      <View style={orderStyles.orderModalOverlay}>
+        <View style={orderStyles.orderModalContainer}>
+          <View style={orderStyles.orderModalHeader}>
+            <Ionicons name="lock-closed-outline" size={50} color="#FFD700" />
+            <Text style={orderStyles.orderModalTitle}>Account Required</Text>
+          </View>
+
+          <Text style={orderStyles.orderModalText}>
+            You need to create an account or log in to add items to cart and
+            access profile features. Don't worry, your browsing session will be
+            saved!
+          </Text>
+
+          <View style={orderStyles.orderModalButtons}>
+            <TouchableOpacity
+              style={orderStyles.orderModalLoginButton}
+              onPress={handleLoginPress}
+              activeOpacity={0.8}
+            >
+              <Text style={orderStyles.orderModalLoginText}>Log In</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={orderStyles.orderModalSignUpButton}
+              onPress={handleSignUpPress}
+              activeOpacity={0.8}
+            >
+              <Text style={orderStyles.orderModalSignUpText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={orderStyles.orderModalCloseButton}
+            onPress={() => setGuestModalVisible(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={orderStyles.orderModalCloseText}>
+              Continue as Guest
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={orderStyles.orderContainer}>
@@ -130,23 +212,14 @@ export default function Order() {
             <Ionicons name="arrow-back" size={24} color={ORDER_COLORS.white} />
           </TouchableOpacity>
 
-          {/* Logo in header */}
+          {/* Logo in header - centered */}
           <Image
             source={require("../assets/images/NuEatsLogov2.png")}
             style={orderStyles.orderLogoSmall}
           />
 
-          <TouchableOpacity
-            style={orderStyles.orderProfileButton}
-            onPress={() => router.push("/Profile")}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="person-circle"
-              size={28}
-              color={ORDER_COLORS.white}
-            />
-          </TouchableOpacity>
+          {/* Empty view to balance the layout */}
+          <View style={{ width: 40 }} />
         </View>
       </SafeAreaView>
 
@@ -168,7 +241,6 @@ export default function Order() {
               ],
             },
           ]}
-          // Removed blurRadius prop to make image clear
         />
         <LinearGradient
           colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
@@ -308,22 +380,57 @@ export default function Order() {
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
+
+            {/* Total price display */}
+            <View
+              style={{
+                marginTop: 15,
+                paddingTop: 15,
+                borderTopWidth: 1,
+                borderTopColor: "#f0f0f0",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#666" }}>
+                Total:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: ORDER_COLORS.primary,
+                }}
+              >
+                ₱{(Number(price) * quantity).toFixed(0)}
+              </Text>
+            </View>
           </View>
 
           {/* Add to Cart Button */}
           <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
             <TouchableOpacity
-              style={orderStyles.orderAddToCartButton}
+              style={[
+                orderStyles.orderAddToCartButton,
+                isGuestMode && { opacity: 0.8 },
+              ]}
               onPress={handleAddToCart}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[ORDER_COLORS.primaryDark, ORDER_COLORS.primary]}
+                colors={
+                  isGuestMode
+                    ? ["#FF9800", "#F57C00"]
+                    : [ORDER_COLORS.primaryDark, ORDER_COLORS.primary]
+                }
                 style={orderStyles.orderAddToCartGradient}
               >
-                <Text style={orderStyles.orderAddToCartText}>Add to Cart</Text>
+                <Text style={orderStyles.orderAddToCartText}>
+                  {isGuestMode ? "Login to Add to Cart" : "Add to Cart"}
+                </Text>
                 <Ionicons
-                  name="cart"
+                  name={isGuestMode ? "lock-closed" : "cart"}
                   size={20}
                   color={ORDER_COLORS.white}
                   style={orderStyles.orderCartIcon}
@@ -333,6 +440,9 @@ export default function Order() {
           </Animated.View>
         </Animated.View>
       </Animated.ScrollView>
+
+      {/* Guest Mode Modal */}
+      {renderGuestModal()}
     </View>
   );
 }

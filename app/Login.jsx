@@ -10,9 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "./context/AuthContext"; // Import the auth context
+import { demoHelpers } from "./demodata/profileDemoData"; // Import demo helpers
 import loginStyles from "./src/Login.js";
 
 export default function Login() {
@@ -20,18 +23,63 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
+  const [loginError, setLoginError] = useState("");
 
-  const handleLogin = () => {
+  const router = useRouter();
+  const { login, continueAsGuest, isLoading } = useAuth();
+
+  const handleLogin = async () => {
+    // Clear previous error
+    setLoginError("");
+
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+      setLoginError("Please enter both email and password.");
       return;
     }
-    Alert.alert("Success", "Logged in!");
-    router.replace("/Menu");
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setLoginError("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      // Use demoHelpers to authenticate user
+      const authResult = demoHelpers.authenticateUser(email, password);
+
+      if (authResult.success) {
+        // Pass the authenticated user data to the login function
+        const result = await login(email, password, authResult.user);
+
+        if (result.success) {
+          Alert.alert("Success", `Welcome back, ${authResult.user.name}!`, [
+            {
+              text: "OK",
+              onPress: () =>
+                router.replace({
+                  pathname: "/Menu",
+                  params: {
+                    userId: authResult.user.id,
+                    userName: authResult.user.name,
+                    userEmail: authResult.user.email,
+                  },
+                }),
+            },
+          ]);
+        } else {
+          setLoginError(result.message);
+        }
+      } else {
+        setLoginError(authResult.message);
+      }
+    } catch (error) {
+      setLoginError("An unexpected error occurred. Please try again.");
+    }
   };
 
   const handleGuestContinue = () => {
+    continueAsGuest();
     router.replace("/Menu");
   };
 
@@ -61,14 +109,36 @@ export default function Login() {
                 <Text style={loginStyles.loginWelcome}>Welcome </Text>to NUeats!
               </Text>
 
+              {/* Error Message */}
+              {loginError ? (
+                <View
+                  style={{
+                    backgroundColor: "#ffebee",
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#f44336",
+                    padding: 10,
+                    marginBottom: 15,
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={{ color: "#c62828", fontSize: 14 }}>
+                    {loginError}
+                  </Text>
+                </View>
+              ) : null}
+
               {/* Email */}
               <TextInput
                 style={loginStyles.loginInput}
                 placeholder="Enter your email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setLoginError(""); // Clear error when typing
+                }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                editable={!isLoading}
               />
 
               {/* Password with Eye Icon */}
@@ -77,12 +147,17 @@ export default function Login() {
                   style={loginStyles.passwordInput}
                   placeholder="Enter your password"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setLoginError(""); // Clear error when typing
+                  }}
                   secureTextEntry={!showPassword}
+                  editable={!isLoading}
                 />
                 <TouchableOpacity
                   style={loginStyles.eyeIcon}
                   onPress={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   <Ionicons
                     name={showPassword ? "eye" : "eye-off"}
@@ -93,28 +168,37 @@ export default function Login() {
               </View>
 
               <View style={loginStyles.loginOptions}>
-                <TouchableOpacity onPress={() => setRemember(!remember)}>
+                <TouchableOpacity
+                  onPress={() => setRemember(!remember)}
+                  disabled={isLoading}
+                >
                   <Text style={loginStyles.remember}>
                     {remember ? "☑" : "☐"} Remember Me
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity>
+                <TouchableOpacity disabled={isLoading}>
                   <Text style={loginStyles.forgot}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity
-                style={loginStyles.loginBtn}
+                style={[loginStyles.loginBtn, isLoading && { opacity: 0.7 }]}
                 onPress={handleLogin}
+                disabled={isLoading}
               >
-                <Text style={loginStyles.loginBtnText}>Login</Text>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={loginStyles.loginBtnText}>Login</Text>
+                )}
               </TouchableOpacity>
 
               <View style={loginStyles.loginSignupRow}>
                 <Text style={{ color: "#fff" }}>Don't have an account? </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/Termsandconditions")}
+                  disabled={isLoading}
                 >
                   <Text style={loginStyles.loginSignupLink}>Sign Up</Text>
                 </TouchableOpacity>
@@ -122,9 +206,48 @@ export default function Login() {
 
               {/* Continue as Guest Option */}
               <View style={loginStyles.guestOption}>
-                <TouchableOpacity onPress={handleGuestContinue}>
+                <TouchableOpacity
+                  onPress={handleGuestContinue}
+                  disabled={isLoading}
+                >
                   <Text style={loginStyles.guestText}>Continue as Guest</Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Demo Credentials Info (for testing) */}
+              <View
+                style={{
+                  marginTop: 20,
+                  padding: 15,
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#FFD700",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                    textAlign: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  Demo Accounts for Testing:
+                </Text>
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 10,
+                    textAlign: "center",
+                    lineHeight: 14,
+                  }}
+                >
+                  alden.richards@students.nu.dasma.ph / Alden@123{"\n"}
+                  maine.mendoza@students.nu.dasma.ph / Maine#456{"\n"}
+                  john.santos@students.nu.dasma.ph / John$789{"\n"}
+                  maria.garcia@students.nu.dasma.ph / Maria&321{"\n"}
+                  rico.puno@students.nu.dasma.ph / Rico*654
+                </Text>
               </View>
             </View>
           </View>

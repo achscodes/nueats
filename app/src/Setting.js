@@ -26,6 +26,13 @@ const SETTINGS_GLOBAL = {
     fontWeight: "bold",
     color: SETTINGS_COLORS.text,
   },
+  cardShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
 };
 
 const settingsStyles = StyleSheet.create({
@@ -80,6 +87,65 @@ const settingsStyles = StyleSheet.create({
     color: SETTINGS_COLORS.text,
     fontFamily: "Poppins",
   },
+
+  // Notification Card Styles
+  notificationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: SETTINGS_COLORS.lightBg,
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 16,
+    minHeight: 65,
+    ...SETTINGS_GLOBAL.shadow,
+  },
+
+  notificationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+  // Switch Styling
+  customSwitch: {
+    transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }],
+  },
+
+  // Success/Error Message Styles
+  messageContainer: {
+    backgroundColor: SETTINGS_COLORS.white,
+    marginHorizontal: 0,
+    marginVertical: 5,
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    ...SETTINGS_GLOBAL.cardShadow,
+  },
+
+  successMessage: {
+    borderLeftColor: "#10b981",
+    backgroundColor: "#ecfdf5",
+  },
+
+  errorMessage: {
+    borderLeftColor: SETTINGS_COLORS.danger,
+    backgroundColor: "#fef2f2",
+  },
+
+  messageText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  successMessageText: {
+    color: "#065f46",
+  },
+
+  errorMessageText: {
+    color: SETTINGS_COLORS.danger,
+  },
+
   logoutButton: {
     marginTop: "auto",
     backgroundColor: SETTINGS_COLORS.danger,

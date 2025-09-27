@@ -62,10 +62,47 @@ const menuStyles = StyleSheet.create({
     height: 50,
     resizeMode: "contain",
   },
+  menuHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  menuGuestText: {
+    color: MENU_COLORS.white,
+    fontSize: 16,
+    fontWeight: "600",
+    marginRight: 12,
+    opacity: 0.9,
+  },
   menuSettingsWrapper: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: "rgba(255, 215, 0, 0.1)",
+  },
+
+  /* ===== Login Notification (Sliding from header) ===== */
+  menuLoginNotification: {
+    position: "absolute",
+    top: 80, // Position just below header
+    left: 20,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: MENU_COLORS.white,
+    borderRadius: 12,
+    ...MENU_GLOBAL.shadowStrong,
+    elevation: 10,
+  },
+  menuLoginNotificationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuLoginNotificationText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: MENU_COLORS.text,
+    marginLeft: 8,
+    flex: 1,
   },
 
   /* ===== Welcome Section ===== */
@@ -379,6 +416,84 @@ const menuStyles = StyleSheet.create({
     fontWeight: "bold",
     color: MENU_COLORS.text,
     textAlign: "center",
+  },
+
+  /* ===== Guest Mode Modal ===== */
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  menuModalContainer: {
+    backgroundColor: MENU_COLORS.white,
+    borderRadius: 25,
+    padding: 30,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    ...MENU_GLOBAL.shadowStrong,
+    elevation: 10,
+  },
+  menuModalHeader: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  menuModalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: MENU_COLORS.primary,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  menuModalText: {
+    fontSize: 16,
+    color: MENU_COLORS.gray,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  menuModalButtons: {
+    width: "100%",
+    marginBottom: 20,
+  },
+  menuModalLoginButton: {
+    backgroundColor: MENU_COLORS.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginBottom: 15,
+    ...MENU_GLOBAL.shadow,
+  },
+  menuModalLoginText: {
+    color: MENU_COLORS.white,
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  menuModalSignUpButton: {
+    backgroundColor: MENU_COLORS.accent,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    ...MENU_GLOBAL.shadow,
+  },
+  menuModalSignUpText: {
+    color: MENU_COLORS.primaryDark,
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  menuModalCloseButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  menuModalCloseText: {
+    color: MENU_COLORS.gray,
+    fontSize: 14,
+    textAlign: "center",
+    textDecorationLine: "underline",
   },
 
   /* ===== Animation Helpers ===== */
