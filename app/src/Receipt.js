@@ -65,17 +65,27 @@ const receiptStyles = StyleSheet.create({
   receiptCardContainer: {
     alignItems: "center",
     paddingVertical: 30,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15, // Reduced padding for wider content
   },
 
   /* ===== Receipt Capture Area ===== */
   receiptCaptureArea: {
     alignItems: "center",
-    backgroundColor: RECEIPT_COLORS.white,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: 25,
+    paddingHorizontal: 25,
     marginBottom: 30,
-    borderRadius: 10,
+    width: "95%", // Made wider
+    minWidth: 350, // Minimum width to ensure it's not too narrow
+  },
+
+  /* ===== Receipt Capture Content ===== */
+  receiptCaptureContent: {
+    alignItems: "center",
+    backgroundColor: RECEIPT_COLORS.white,
+    paddingVertical: 25,
+    paddingHorizontal: 25,
+    borderRadius: 15,
+    width: "100%",
   },
 
   /* ===== Receipt Success Circle ===== */
@@ -95,16 +105,17 @@ const receiptStyles = StyleSheet.create({
   receiptCard: {
     backgroundColor: RECEIPT_COLORS.white,
     borderRadius: 20,
-    padding: 25,
+    padding: 30,
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 450, // Increased max width
+    minWidth: 300, // Added minimum width
     ...RECEIPT_GLOBAL.shadowStrong,
     elevation: 8,
   },
 
   /* ===== Receipt Store Info ===== */
   receiptStoreName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
     color: RECEIPT_COLORS.primary,
     textAlign: "center",
@@ -123,7 +134,7 @@ const receiptStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   receiptItemText: {
     fontSize: 16,
@@ -135,7 +146,7 @@ const receiptStyles = StyleSheet.create({
     fontSize: 16,
     color: RECEIPT_COLORS.text,
     fontWeight: "600",
-    marginLeft: 10,
+    marginLeft: 15,
   },
 
   /* ===== Receipt Separator ===== */
@@ -148,13 +159,13 @@ const receiptStyles = StyleSheet.create({
 
   /* ===== Receipt Info Block ===== */
   receiptInfoBlock: {
-    marginVertical: 8,
+    marginVertical: 10,
   },
   receiptLabel: {
     fontSize: 14,
     color: RECEIPT_COLORS.gray,
     fontWeight: "500",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   receiptValue: {
     fontSize: 16,
@@ -168,10 +179,11 @@ const receiptStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: RECEIPT_COLORS.primary,
     paddingVertical: 15,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     borderRadius: 25,
     ...RECEIPT_GLOBAL.shadow,
     elevation: 5,
+    marginBottom: 50,
   },
   receiptDownloadText: {
     fontSize: 16,

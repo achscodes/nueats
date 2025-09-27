@@ -17,7 +17,8 @@
         "backgroundColor": "#2c3e91"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.NuEats"
+      "package": "com.anonymous.NuEats",
+      "permissions": ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"]
     },
     "web": {
       "bundler": "metro",
@@ -37,9 +38,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow NUeats to access your photos to save receipts.",
-          "savePhotosPermission": "Allow NUeats to save receipts to your photo library.",
-          "isAccessMediaLocationEnabled": true
+          "photosPermission": "Allow NUeats to save receipts to your photo library.",
+          "savePhotosPermission": "Allow NUeats to save receipts to your photo library."
         }
       ]
     ],
