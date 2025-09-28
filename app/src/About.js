@@ -1,37 +1,37 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions } from "react-native";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const aboutStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  
+
   // Header Styles
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  
+
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  
+
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
-  
+
   placeholder: {
     width: 40,
   },
@@ -40,40 +40,40 @@ const aboutStyles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  
+
   scrollContent: {
     paddingBottom: 100,
   },
 
   // Logo Section
   logoSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 30,
   },
-  
+
   logoContainer: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 20,
     paddingVertical: 5,
     borderRadius: 25,
     marginBottom: 10,
   },
-  
+
   logoImage: {
     width: 120,
     height: 60,
   },
-  
+
   logoBackground: {
     width: 50,
     height: 50,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 15,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -82,57 +82,57 @@ const aboutStyles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  
+
   customLogoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginRight: 8,
   },
-  
+
   nuLetterContainer: {
-    backgroundColor: '#FFD700',
+    backgroundColor: "#FFD700",
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginHorizontal: 1,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: "#FFFFFF",
   },
-  
+
   nuLetter: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
-  
+
   logoTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    alignItems: "baseline",
   },
-  
+
   nuText: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
     letterSpacing: -1,
   },
-  
+
   eatsText: {
     fontSize: 24,
-    fontWeight: '300',
-    color: '#FFFFFF',
-    fontStyle: 'italic',
+    fontWeight: "300",
+    color: "#FFFFFF",
+    fontStyle: "italic",
     marginLeft: 2,
   },
 
   // Content Card
   contentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
     borderRadius: 20,
     padding: 25,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 8,
@@ -144,22 +144,22 @@ const aboutStyles = StyleSheet.create({
 
   // Title Section
   titleSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 25,
   },
-  
+
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#2C3E50',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#2C3E50",
+    textAlign: "center",
     marginBottom: 8,
   },
-  
+
   titleUnderline: {
     width: 60,
     height: 3,
-    backgroundColor: '#4A5FBE',
+    backgroundColor: "#4A5FBE",
     borderRadius: 2,
   },
 
@@ -167,75 +167,209 @@ const aboutStyles = StyleSheet.create({
   descriptionSection: {
     marginBottom: 30,
   },
-  
+
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#5D6D7E',
-    textAlign: 'center',
+    color: "#5D6D7E",
+    textAlign: "center",
     marginBottom: 15,
   },
 
   // Features Section
   featuresSection: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
-  
+
   featuresTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
+    fontWeight: "600",
+    color: "#2C3E50",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  
+
   featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 15,
     paddingVertical: 8,
   },
-  
+
   featureIcon: {
     width: 36,
     height: 36,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 15,
     borderWidth: 1,
-    borderColor: '#E9ECEF',
+    borderColor: "#E9ECEF",
   },
-  
+
   featureText: {
     fontSize: 15,
-    color: '#495057',
+    color: "#495057",
     flex: 1,
-    fontWeight: '500',
+    fontWeight: "500",
+  },
+
+  // Operating Hours Section
+  operatingHoursSection: {
+    marginBottom: 30,
+  },
+
+  operatingHoursTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#2C3E50",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+
+  todayBanner: {
+    backgroundColor: "#4A5FBE",
+    paddingVertical: 6,
+    paddingHorizontal: 15,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  todayBannerText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  scheduleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: "#F8F9FA",
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+
+  scheduleItemToday: {
+    backgroundColor: "#E8F4FD",
+    borderColor: "#4A5FBE",
+    borderWidth: 2,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    marginTop: 0,
+  },
+
+  scheduleDay: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+  scheduleDayText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#495057",
+  },
+
+  scheduleDayTextToday: {
+    color: "#4A5FBE",
+    fontWeight: "700",
+  },
+
+  scheduleTime: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  scheduleTimeText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#495057",
+    marginRight: 10,
+  },
+
+  scheduleTimeTextToday: {
+    color: "#4A5FBE",
+    fontWeight: "600",
+  },
+
+  closedText: {
+    color: "#DC3545",
+    fontWeight: "600",
+  },
+
+  openIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  closedIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  openDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#28A745",
+    marginRight: 5,
+  },
+
+  closedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#DC3545",
+    marginRight: 5,
+  },
+
+  openText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#28A745",
+    textTransform: "uppercase",
+  },
+
+  closedTextLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#DC3545",
+    textTransform: "uppercase",
   },
 
   // Info Section
   infoSection: {
     marginTop: 10,
   },
-  
+
   infoCard: {
-    backgroundColor: '#F8F9FF',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#F8F9FF",
+    flexDirection: "row",
+    alignItems: "center",
     padding: 15,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#4A5FBE',
+    borderLeftColor: "#4A5FBE",
   },
-  
+
   infoText: {
     fontSize: 14,
-    color: '#4A5FBE',
+    color: "#4A5FBE",
     marginLeft: 12,
     flex: 1,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   // Bottom Spacing
@@ -245,15 +379,15 @@ const aboutStyles = StyleSheet.create({
 
   // Floating Back Button
   floatingBackButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 30,
     left: 20,
     right: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingVertical: 16,
     borderRadius: 25,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -262,11 +396,11 @@ const aboutStyles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  
+
   floatingBackButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#4A5FBE',
+    fontWeight: "600",
+    color: "#4A5FBE",
   },
 });
 

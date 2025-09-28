@@ -19,6 +19,49 @@ const { height } = Dimensions.get("window");
 export default function AboutPage() {
   const router = useRouter();
 
+  // Operating hours data
+  const operatingHours = [
+    { day: "Monday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
+    { day: "Tuesday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
+    {
+      day: "Wednesday",
+      isOpen: true,
+      openTime: "7:00 AM",
+      closeTime: "7:00 PM",
+    },
+    {
+      day: "Thursday",
+      isOpen: true,
+      openTime: "7:00 AM",
+      closeTime: "7:00 PM",
+    },
+    { day: "Friday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
+    {
+      day: "Saturday",
+      isOpen: true,
+      openTime: "8:00 AM",
+      closeTime: "5:00 PM",
+    },
+    { day: "Sunday", isOpen: false, openTime: null, closeTime: null },
+  ];
+
+  // Get current day to highlight it
+  const getCurrentDay = () => {
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const today = new Date().getDay();
+    return days[today];
+  };
+
+  const currentDay = getCurrentDay();
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1a237e" />
@@ -118,6 +161,84 @@ export default function AboutPage() {
                   Easy ordering & payment
                 </Text>
               </View>
+            </View>
+
+            {/* Operating Hours Section */}
+            <View style={aboutStyles.operatingHoursSection}>
+              <Text style={aboutStyles.operatingHoursTitle}>
+                Operating Hours
+              </Text>
+
+              {operatingHours.map((schedule, index) => (
+                <View key={index}>
+                  {/* Today Banner */}
+                  {schedule.day === currentDay && (
+                    <View style={aboutStyles.todayBanner}>
+                      <Text style={aboutStyles.todayBannerText}>Today</Text>
+                    </View>
+                  )}
+
+                  {/* Schedule Item */}
+                  <View
+                    style={[
+                      aboutStyles.scheduleItem,
+                      schedule.day === currentDay &&
+                        aboutStyles.scheduleItemToday,
+                    ]}
+                  >
+                    <View style={aboutStyles.scheduleDay}>
+                      <Text
+                        style={[
+                          aboutStyles.scheduleDayText,
+                          schedule.day === currentDay &&
+                            aboutStyles.scheduleDayTextToday,
+                        ]}
+                      >
+                        {schedule.day}
+                      </Text>
+                    </View>
+
+                    <View style={aboutStyles.scheduleTime}>
+                      {schedule.isOpen ? (
+                        <>
+                          <Text
+                            style={[
+                              aboutStyles.scheduleTimeText,
+                              schedule.day === currentDay &&
+                                aboutStyles.scheduleTimeTextToday,
+                            ]}
+                          >
+                            {schedule.openTime} - {schedule.closeTime}
+                          </Text>
+                          <View style={aboutStyles.openIndicator}>
+                            <View style={aboutStyles.openDot} />
+                            <Text style={aboutStyles.openText}>Open</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <>
+                          <Text
+                            style={[
+                              aboutStyles.scheduleTimeText,
+                              aboutStyles.closedText,
+                              schedule.day === currentDay &&
+                                aboutStyles.scheduleTimeTextToday,
+                            ]}
+                          >
+                            Closed
+                          </Text>
+                          <View style={aboutStyles.closedIndicator}>
+                            <View style={aboutStyles.closedDot} />
+                            <Text style={aboutStyles.closedTextLabel}>
+                              Closed
+                            </Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
             </View>
 
             {/* Info Section */}

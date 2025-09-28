@@ -93,7 +93,7 @@ export default function OrderStatus() {
 
   // State management
   const [remaining, setRemaining] = useState(0);
-  const [orderStatus, setOrderStatus] = useState(status);
+  const [orderStatus, setOrderStatus] = useState("pending"); // Force default to pending
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
@@ -126,7 +126,7 @@ export default function OrderStatus() {
 
   // Update countdown using context method
   useEffect(() => {
-    if (orderStatus === "preparing" || orderStatus === "pending") {
+    if (orderStatus === "preparing") {
       const updateCountdown = () => {
         const timeLeft = getTimeRemaining();
         setRemaining(timeLeft);
@@ -227,6 +227,10 @@ export default function OrderStatus() {
   };
 
   // Test button handlers
+  const handleMakePreparing = () => {
+    setOrderStatus("preparing");
+  };
+
   const handleMakeReady = () => {
     setOrderStatus("ready");
     setRemaining(0);
@@ -286,8 +290,16 @@ export default function OrderStatus() {
   // Render order status display
   const renderOrderStatus = () => {
     switch (orderStatus) {
-      case "preparing":
       case "pending":
+        return (
+          <>
+            <Text style={orderStatusStyles.orderStatusEtaText}>PENDING</Text>
+            <Text style={orderStatusStyles.orderStatusEtaLabel}>
+              Your order is being confirmed
+            </Text>
+          </>
+        );
+      case "preparing":
         return (
           <>
             <Text style={orderStatusStyles.orderStatusEtaText}>
@@ -354,12 +366,41 @@ export default function OrderStatus() {
           <View
             style={[
               orderStatusStyles.orderStatusDot,
-              (orderStatus === "preparing" || orderStatus === "pending") && {
+              orderStatus === "pending" && {
                 backgroundColor: ORDER_STATUS_COLORS.orange,
               },
             ]}
           />
-          <Text style={orderStatusStyles.orderStatusStepText}>
+          <Text
+            style={[
+              orderStatusStyles.orderStatusStepText,
+              orderStatus === "pending" && {
+                fontWeight: "bold",
+                color: ORDER_STATUS_COLORS.primary,
+              },
+            ]}
+          >
+            Your order is pending
+          </Text>
+        </View>
+        <View style={orderStatusStyles.orderStatusStep}>
+          <View
+            style={[
+              orderStatusStyles.orderStatusDot,
+              orderStatus === "preparing" && {
+                backgroundColor: ORDER_STATUS_COLORS.orange,
+              },
+            ]}
+          />
+          <Text
+            style={[
+              orderStatusStyles.orderStatusStepText,
+              orderStatus === "preparing" && {
+                fontWeight: "bold",
+                color: ORDER_STATUS_COLORS.primary,
+              },
+            ]}
+          >
             Your order is being prepared
           </Text>
         </View>
@@ -372,7 +413,15 @@ export default function OrderStatus() {
               },
             ]}
           />
-          <Text style={orderStatusStyles.orderStatusStepText}>
+          <Text
+            style={[
+              orderStatusStyles.orderStatusStepText,
+              orderStatus === "ready" && {
+                fontWeight: "bold",
+                color: ORDER_STATUS_COLORS.primary,
+              },
+            ]}
+          >
             You can now pick up your order
           </Text>
         </View>
@@ -385,7 +434,15 @@ export default function OrderStatus() {
               },
             ]}
           />
-          <Text style={orderStatusStyles.orderStatusStepText}>
+          <Text
+            style={[
+              orderStatusStyles.orderStatusStepText,
+              orderStatus === "received" && {
+                fontWeight: "bold",
+                color: ORDER_STATUS_COLORS.primary,
+              },
+            ]}
+          >
             Order has been received
           </Text>
         </View>
@@ -397,7 +454,12 @@ export default function OrderStatus() {
                 { backgroundColor: ORDER_STATUS_COLORS.danger },
               ]}
             />
-            <Text style={orderStatusStyles.orderStatusStepText}>
+            <Text
+              style={[
+                orderStatusStyles.orderStatusStepText,
+                { fontWeight: "bold", color: ORDER_STATUS_COLORS.danger },
+              ]}
+            >
               Your order is cancelled
             </Text>
           </View>
@@ -421,12 +483,23 @@ export default function OrderStatus() {
           <TouchableOpacity
             style={[
               orderStatusStyles.testButton,
+              { backgroundColor: ORDER_STATUS_COLORS.primary },
+            ]}
+            onPress={handleMakePreparing}
+          >
+            <Text style={orderStatusStyles.testButtonText}>Make Preparing</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              orderStatusStyles.testButton,
               { backgroundColor: ORDER_STATUS_COLORS.orange },
             ]}
             onPress={handleMakeReady}
           >
             <Text style={orderStatusStyles.testButtonText}>Make Ready</Text>
           </TouchableOpacity>
+        </View>
+        <View style={orderStatusStyles.testButtonsRow}>
           <TouchableOpacity
             style={[
               orderStatusStyles.testButton,
@@ -436,18 +509,20 @@ export default function OrderStatus() {
           >
             <Text style={orderStatusStyles.testButtonText}>Cancel Order</Text>
           </TouchableOpacity>
+          {orderStatus === "ready" && (
+            <TouchableOpacity
+              style={[
+                orderStatusStyles.testButton,
+                { backgroundColor: ORDER_STATUS_COLORS.green },
+              ]}
+              onPress={handleMarkReceived}
+            >
+              <Text style={orderStatusStyles.testButtonText}>
+                Mark Received
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {orderStatus === "ready" && (
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.green },
-            ]}
-            onPress={handleMarkReceived}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Mark Received</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
