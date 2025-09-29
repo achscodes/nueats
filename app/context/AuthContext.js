@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { demoHelpers } from "../demodata/profileDemoData.js";
+import { supabase } from "../../lib/supabase";
 
 const AuthContext = createContext();
 
@@ -19,36 +19,93 @@ export const AuthProvider = ({ children }) => {
   // Check if user is guest
   const isGuest = !isAuthenticated || !user;
 
-  // Login function using demo data
+  // Initialize session and listen for changes
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!isMounted) return;
+      if (session?.user) {
+        setUser(session.user);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    };
+    init();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Login with Supabase
   const login = async (email, password) => {
     setIsLoading(true);
-
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Use the demo authentication helper
-      const result = demoHelpers.authenticateUser(email, password);
-
-      if (result.success) {
-        setUser(result.user);
-        setIsAuthenticated(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
         setIsLoading(false);
-        return { success: true, message: result.message };
-      } else {
-        setIsLoading(false);
-        return { success: false, message: result.message };
+        return { success: false, message: error.message };
       }
-    } catch (error) {
+      setUser(data.user);
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return { success: true, message: "Logged in" };
+    } catch (e) {
       setIsLoading(false);
       return { success: false, message: "An error occurred during login" };
     }
   };
 
   // Logout function
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  // Sign up with Supabase; store display_name in user_metadata
+  const signUp = async ({ email, password, displayName }) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { display_name: displayName },
+        },
+      });
+      if (error) {
+        setIsLoading(false);
+        return { success: false, message: error.message };
+      }
+      // Depending on email confirmations, user may need to verify email
+      setIsLoading(false);
+      return { success: true, message: "Account created. Check your email to verify." };
+    } catch (e) {
+      setIsLoading(false);
+      return { success: false, message: "An error occurred during sign up" };
+    }
   };
 
   // Guest login function
@@ -76,6 +133,7 @@ export const AuthProvider = ({ children }) => {
     isGuest,
     isLoading,
     login,
+    signUp,
     logout,
     continueAsGuest,
     getUserFirstName,

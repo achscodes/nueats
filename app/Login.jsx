@@ -15,7 +15,6 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "./context/AuthContext"; // Import the auth context
-import { demoHelpers } from "./demodata/profileDemoData"; // Import demo helpers
 import loginStyles from "./src/Login.js";
 
 export default function Login() {
@@ -45,33 +44,19 @@ export default function Login() {
     }
 
     try {
-      // Use demoHelpers to authenticate user
-      const authResult = demoHelpers.authenticateUser(email, password);
-
-      if (authResult.success) {
-        // Pass the authenticated user data to the login function
-        const result = await login(email, password, authResult.user);
-
-        if (result.success) {
-          Alert.alert("Success", `Welcome back, ${authResult.user.name}!`, [
-            {
-              text: "OK",
-              onPress: () =>
-                router.replace({
-                  pathname: "/Menu",
-                  params: {
-                    userId: authResult.user.id,
-                    userName: authResult.user.name,
-                    userEmail: authResult.user.email,
-                  },
-                }),
-            },
-          ]);
-        } else {
-          setLoginError(result.message);
-        }
+      const result = await login(email, password);
+      if (result.success) {
+        Alert.alert("Success", `Welcome back!`, [
+          {
+            text: "OK",
+            onPress: () =>
+              router.replace({
+                pathname: "/Menu",
+              }),
+          },
+        ]);
       } else {
-        setLoginError(authResult.message);
+        setLoginError(result.message);
       }
     } catch (error) {
       setLoginError("An unexpected error occurred. Please try again.");
@@ -131,6 +116,7 @@ export default function Login() {
               <TextInput
                 style={loginStyles.loginInput}
                 placeholder="Enter your email"
+                placeholderTextColor="#888"
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -146,6 +132,7 @@ export default function Login() {
                 <TextInput
                   style={loginStyles.passwordInput}
                   placeholder="Enter your password"
+                  placeholderTextColor="#888"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -214,41 +201,7 @@ export default function Login() {
                 </TouchableOpacity>
               </View>
 
-              {/* Demo Credentials Info (for testing) */}
-              <View
-                style={{
-                  marginTop: 20,
-                  padding: 15,
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: 10,
-                }}
-              >
-                <Text
-                  style={{
-                    color: "#FFD700",
-                    fontSize: 12,
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  Demo Accounts for Testing:
-                </Text>
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontSize: 10,
-                    textAlign: "center",
-                    lineHeight: 14,
-                  }}
-                >
-                  alden.richards@students.nu.dasma.ph / Alden@123{"\n"}
-                  maine.mendoza@students.nu.dasma.ph / Maine#456{"\n"}
-                  john.santos@students.nu.dasma.ph / John$789{"\n"}
-                  maria.garcia@students.nu.dasma.ph / Maria&321{"\n"}
-                  rico.puno@students.nu.dasma.ph / Rico*654
-                </Text>
-              </View>
+              {/* Remove demo credentials block when using real auth */}
             </View>
           </View>
         </ScrollView>

@@ -25,6 +25,27 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Supabase setup
+
+1. Create a project at `https://supabase.com`.
+2. Copy your Project URL and anon key from Project Settings → API.
+3. Create a `.env` file in the project root (same level as `package.json`) with:
+
+   ```bash
+   EXPO_PUBLIC_SUPABASE_URL=your-project-url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+   These are public runtime env vars that work in Expo Go and builds.
+
+4. Restart the dev server after adding envs:
+
+   ```bash
+   npx expo start -c
+   ```
+
+The Supabase client is initialized in `lib/supabase.ts` and persists sessions using `expo-secure-store`.
+
 ## Get a fresh project
 
 When you're ready, run:

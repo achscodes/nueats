@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import signupStyles from "./src/Signup.js"; // ✅ Import dedicated signup styles
+import { useAuth } from "./context/AuthContext";
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState("");
@@ -26,6 +27,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const router = useRouter();
+  const { signUp } = useAuth();
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,7 +45,7 @@ export default function SignUp() {
     return passwordRegex.test(password);
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (
       !firstName ||
       !lastName ||
@@ -81,8 +83,22 @@ export default function SignUp() {
       Alert.alert("Error", "Passwords do not match.");
       return;
     }
-    Alert.alert("Success", "Account created!");
-    router.replace("/(tabs)");
+    const displayName = `${firstName} ${lastName}`.trim();
+    const result = await signUp({ email, password, displayName });
+    if (result.success) {
+      Alert.alert(
+        "Success",
+        "Account created. Please check your email to verify before logging in.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/Login"),
+          },
+        ]
+      );
+    } else {
+      Alert.alert("Error", result.message || "Failed to create account.");
+    }
   };
 
   return (
@@ -123,6 +139,7 @@ export default function SignUp() {
               <TextInput
                 style={signupStyles.signupInput}
                 placeholder="First Name"
+                placeholderTextColor="#888"
                 value={firstName}
                 onChangeText={setFirstName}
               />
@@ -131,6 +148,7 @@ export default function SignUp() {
               <TextInput
                 style={signupStyles.signupInput}
                 placeholder="Last Name"
+                placeholderTextColor="#888"
                 value={lastName}
                 onChangeText={setLastName}
               />
@@ -139,6 +157,7 @@ export default function SignUp() {
               <TextInput
                 style={signupStyles.signupInput}
                 placeholder="Enter your email"
+                placeholderTextColor="#888"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -149,6 +168,7 @@ export default function SignUp() {
               <TextInput
                 style={signupStyles.signupInput}
                 placeholder="Enter your phone number"
+                placeholderTextColor="#888"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
@@ -159,6 +179,7 @@ export default function SignUp() {
                 <TextInput
                   style={signupStyles.signupPasswordInput}
                   placeholder="Enter your password"
+                  placeholderTextColor="#888"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -180,6 +201,7 @@ export default function SignUp() {
                 <TextInput
                   style={signupStyles.signupPasswordInput}
                   placeholder="Confirm your password"
+                  placeholderTextColor="#888"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
