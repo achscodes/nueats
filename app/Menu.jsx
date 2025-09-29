@@ -56,7 +56,7 @@ export default function Menu() {
   const { currentOrder, getTimeRemaining, storeOrderFromStatus, clearOrder } =
     useContext(OrderContext);
 
-  const { isGuest, getUserFirstName, user, logout } = useAuth(); // Get auth state
+  const { isGuest, getUserFirstName, getUserInitials, user, logout } = useAuth(); // Get auth state
 
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
@@ -289,7 +289,7 @@ export default function Menu() {
   // Get display name
   const getDisplayName = () => {
     if (isGuest) return "Guest";
-    if (currentUser) return currentUser.name.split(" ")[0]; // First name only
+    if (currentUser?.name) return currentUser.name.split(" ")[0]; // First name only
     return getUserFirstName();
   };
 
@@ -550,7 +550,22 @@ export default function Menu() {
             style={styles.menuLogo}
           />
           <View style={styles.menuHeaderRight}>
-            <Text style={styles.menuGuestText}>{getDisplayName()}</Text>
+            <View style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: "#FFD700",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 8,
+            }}>
+              <Text style={{
+                color: "#2c3e91",
+                fontWeight: "bold",
+              }}>
+                {isGuest ? "G" : getUserInitials()}
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={handleSettingsPress}
               style={styles.menuSettingsWrapper}
@@ -566,7 +581,7 @@ export default function Menu() {
 
         {/* Welcome */}
         <Text style={styles.menuWelcome}>
-          Welcome{!isGuest ? `, ${getDisplayName()}` : ""}!
+          Welcome, {getDisplayName()}!
         </Text>
         <Text style={styles.menuSubText}>Let's order your Food!</Text>
 

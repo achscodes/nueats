@@ -114,12 +114,36 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  // Get user's first name
+  // Get user's first name (supports Supabase user metadata)
   const getUserFirstName = () => {
-    if (user && user.name) {
-      return user.name.split(" ")[0];
+    if (user) {
+      const metadata = user.user_metadata || {};
+      const displayName = metadata.display_name || user.name;
+      if (displayName && typeof displayName === "string") {
+        return displayName.split(" ")[0];
+      }
+      if (user.email) {
+        const localPart = user.email.split("@")[0];
+        return localPart.charAt(0).toUpperCase() + localPart.slice(1);
+      }
     }
     return "Guest";
+  };
+
+  // Get user initials for avatar badge
+  const getUserInitials = () => {
+    if (user) {
+      const metadata = user.user_metadata || {};
+      const displayName = metadata.display_name || user.name || "";
+      const source = displayName || (user.email ? user.email.split("@")[0] : "");
+      if (source) {
+        const parts = source.trim().split(/\s+/);
+        const first = parts[0]?.charAt(0) || "";
+        const second = parts.length > 1 ? parts[1]?.charAt(0) : "";
+        return (first + second).toUpperCase() || first.toUpperCase() || "U";
+      }
+    }
+    return "G"; // Guest
   };
 
   // Update user data
@@ -137,6 +161,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     continueAsGuest,
     getUserFirstName,
+    getUserInitials,
     updateUser,
   };
 
