@@ -21,12 +21,7 @@ import { useAuth } from "./context/AuthContext"; // Import auth context
 import { Ionicons } from "@expo/vector-icons";
 // Import styles and demo data
 import styles from "./src/Menu.js";
-import {
-  getMenuItems,
-  getCategories,
-  getFeaturedItems,
-  MENU_ITEMS,
-} from "./demodata/menuDemoData.js";
+import { supabase } from "../lib/supabase";
 import { demoHelpers } from "./demodata/profileDemoData.js";
 
 const { height, width } = Dimensions.get("window");
@@ -145,20 +140,49 @@ export default function Menu() {
     }
   }, [params.userId, isGuest]);
 
-  // Simulate database fetch on component mount
+  // Fetch from Supabase
   useEffect(() => {
     const loadMenuData = async () => {
       setIsLoading(true);
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       try {
-        const categoriesData = getCategories();
-        const itemsData = getMenuItems(selectedCategory, searchText);
+        // Build base query
+        let query = supabase
+          .from("menu_items")
+          .select("id,name,description,price,category,image,prep_time,is_available")
+          .eq("is_available", true)
+          .order("name", { ascending: true });
 
-        setCategories(categoriesData);
-        setMenuItems(itemsData);
+        // Apply category filter (server-side) if not 'all'
+        if (selectedCategory && selectedCategory !== "all") {
+          query = query.eq("category", selectedCategory);
+        }
+
+        // Apply search filter on name or description
+        if (searchText && searchText.trim().length > 0) {
+          const term = `%${searchText.trim()}%`;
+          query = query.or(`name.ilike.${term},description.ilike.${term}`);
+        }
+
+        const { data: items, error } = await query;
+        if (error) throw error;
+
+        setMenuItems(items || []);
+
+        // Build categories dynamically from DB (from available items)
+        const { data: allItems, error: allErr } = await supabase
+          .from("menu_items")
+          .select("category")
+          .eq("is_available", true);
+        if (allErr) throw allErr;
+
+        const unique = Array.from(
+          new Set((allItems || []).map((r) => r.category).filter(Boolean))
+        );
+        const dynamicCategories = [
+          { id: "all", slug: "all", name: "All" },
+          ...unique.map((cat) => ({ id: cat, slug: cat, name: cat })),
+        ];
+        setCategories(dynamicCategories);
 
         // Fade in animation
         Animated.timing(fadeAnim, {
@@ -174,12 +198,6 @@ export default function Menu() {
     };
 
     loadMenuData();
-  }, [selectedCategory, searchText]);
-
-  // Filter items based on category and search
-  useEffect(() => {
-    const filteredItems = getMenuItems(selectedCategory, searchText);
-    setMenuItems(filteredItems);
   }, [selectedCategory, searchText]);
 
   // Get time left using the updated context method
@@ -201,6 +219,7 @@ export default function Menu() {
         price: item.price.toString(),
         image: item.image,
         category: item.category,
+        prep_time: item.prep_time?.toString?.() || "",
         isGuest: isGuest.toString(),
         userId: currentUser?.id || user?.id || "",
       },
@@ -363,7 +382,10 @@ export default function Menu() {
           <Text style={styles.menuFoodDesc} numberOfLines={2}>
             {item.description}
           </Text>
-          <Text style={styles.menuFoodCategory}>{item.category}</Text>
+          <Text style={styles.menuFoodCategory}>
+            {item.category}
+            {item.prep_time ? ` • ${item.prep_time} min` : ""}
+          </Text>
         </View>
         <View style={styles.menuFoodPrice}>
           <Text style={styles.menuFoodPriceText}>

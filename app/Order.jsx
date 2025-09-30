@@ -18,6 +18,7 @@ import { useAuth } from "./context/AuthContext"; // Import auth context
 import { LinearGradient } from "expo-linear-gradient";
 // Import the new dedicated Order styles
 import orderStyles, { ORDER_COLORS } from "./src/Order.js";
+import { supabase } from "../lib/supabase";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const HEADER_HEIGHT = 90;
@@ -27,7 +28,7 @@ export default function Order() {
   const [quantity, setQuantity] = useState(1);
   const [guestModalVisible, setGuestModalVisible] = useState(false); // Guest mode modal
   const router = useRouter();
-  const { id, name, description, price, image, isGuest, userId } =
+  const { id, name, description, price, image, isGuest, userId, prep_time } =
     useLocalSearchParams();
   const { addToCart } = useContext(CartContext);
   const { isGuest: authIsGuest, user, getUserFirstName } = useAuth(); // Get auth state
@@ -101,7 +102,7 @@ export default function Order() {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (isGuestMode) {
       setGuestModalVisible(true);
       return;
@@ -121,15 +122,65 @@ export default function Order() {
       }),
     ]).start();
 
-    addToCart({ id, name, price: Number(price), image }, quantity);
-    Alert.alert(
-      "Added to Cart",
-      `${quantity} ${name}${quantity > 1 ? "s" : ""} added to your cart!`,
-      [
-        { text: "Continue Shopping", onPress: () => router.back() },
-        { text: "View Cart", onPress: () => router.push("/Cart") },
-      ]
-    );
+    try {
+      // 1) Ensure cart exists for this user
+      const userIdStr = user?.id;
+      if (!userIdStr) throw new Error("No authenticated user.");
+
+      const { error: upsertCartError } = await supabase
+        .from("cart")
+        .upsert({ user_id: userIdStr }, { onConflict: "user_id" });
+      if (upsertCartError) throw upsertCartError;
+
+      // 2) Get cart_id
+      const { data: cartRow, error: cartSelectError } = await supabase
+        .from("cart")
+        .select("cart_id")
+        .eq("user_id", userIdStr)
+        .single();
+      if (cartSelectError || !cartRow) throw cartSelectError || new Error("Cart not found");
+
+      const cartIdNum = cartRow.cart_id;
+      const productIdNum = Number(id);
+
+      // 3) Insert or increment cart item quantity
+      const { data: existingItem, error: existingErr } = await supabase
+        .from("cart_items")
+        .select("cart_item_id, quantity")
+        .eq("cart_id", cartIdNum)
+        .eq("product_id", productIdNum)
+        .maybeSingle();
+      if (existingErr) throw existingErr;
+
+      if (existingItem) {
+        const newQty = Number(existingItem.quantity) + Number(quantity);
+        const { error: updateErr } = await supabase
+          .from("cart_items")
+          .update({ quantity: newQty })
+          .eq("cart_item_id", existingItem.cart_item_id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from("cart_items")
+          .insert({ cart_id: cartIdNum, product_id: productIdNum, quantity: Number(quantity) });
+        if (insertErr) throw insertErr;
+      }
+
+      // 4) Sync local UI cart state
+      addToCart({ id, name, price: Number(price), image }, quantity);
+
+      Alert.alert(
+        "Added to Cart",
+        `${quantity} ${name}${quantity > 1 ? "s" : ""} added to your cart!`,
+        [
+          { text: "Continue Shopping", onPress: () => router.back() },
+          { text: "View Cart", onPress: () => router.push("/Cart") },
+        ]
+      );
+    } catch (e) {
+      console.error("Add to cart failed", e);
+      Alert.alert("Error", "Failed to add to cart. Please try again.");
+    }
   };
 
   // Handle login button press
@@ -313,6 +364,12 @@ export default function Order() {
                 <Text style={orderStyles.orderFoodDescription}>
                   {description}
                 </Text>
+                {prep_time ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+                    <Ionicons name="time-outline" size={16} color="#999" />
+                    <Text style={{ marginLeft: 6, color: "#666" }}>{prep_time} min prep</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={orderStyles.orderPriceContainer}>
                 <Text style={orderStyles.orderCurrencySymbol}>₱</Text>
