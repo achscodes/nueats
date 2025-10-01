@@ -96,30 +96,32 @@ export default function Menu() {
     }, [params.fromOrderStatus])
   );
 
-  // Fetch latest active order (Pending/Preparing) for user
-  useEffect(() => {
-    const fetchActiveOrder = async () => {
-      try {
-        if (!user?.id || isGuest) {
+  // Fetch latest active order (Pending/Preparing) for user - refresh on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchActiveOrder = async () => {
+        try {
+          if (!user?.id || isGuest) {
+            setActiveOrder(null);
+            return;
+          }
+          const { data, error } = await supabase
+            .from("orders")
+            .select("order_id, status, total_amount, payment_method, created_at")
+            .eq("user_id", user.id)
+            .in("status", ["Pending", "Preparing"]) // treat only these as active
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (error) throw error;
+          setActiveOrder((data && data.length > 0) ? data[0] : null);
+        } catch (e) {
+          console.error("Failed to load active order", e);
           setActiveOrder(null);
-          return;
         }
-        const { data, error } = await supabase
-          .from("orders")
-          .select("order_id, status, total_amount, payment_method, created_at")
-          .eq("user_id", user.id)
-          .in("status", ["Pending", "Preparing"]) // treat only these as active
-          .order("created_at", { ascending: false })
-          .limit(1);
-        if (error) throw error;
-        setActiveOrder((data && data.length > 0) ? data[0] : null);
-      } catch (e) {
-        console.error("Failed to load active order", e);
-        setActiveOrder(null);
-      }
-    };
-    fetchActiveOrder();
-  }, [user?.id, isGuest]);
+      };
+      fetchActiveOrder();
+    }, [user?.id, isGuest])
+  );
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -313,22 +315,46 @@ export default function Menu() {
     }
   };
 
-  // Handle OrderStatus button press - UPDATED to preserve order number
-  const handleOrderStatusPress = () => {
-    if (!currentOrder) return;
+  // Handle OrderStatus button press - Navigate to most recent active order
+  const handleOrderStatusPress = async () => {
+    try {
+      if (!activeOrder) return;
 
-    router.push({
-      pathname: "/OrderStatus",
-      params: {
-        id: currentOrder.id,
-        time: currentOrder.time,
-        status: currentOrder.status,
-        items: encodeURIComponent(JSON.stringify(currentOrder.items)),
-        total: currentOrder.total.toString(),
-        payment: currentOrder.payment,
-        orderNumber: currentOrder.orderNumber, // IMPORTANT: Pass the existing order number
-      },
-    });
+      // Fetch full order details including items
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('product_id, quantity, price, menu_items:product_id(id,name,image)')
+        .eq('order_id', activeOrder.order_id);
+
+      if (itemsError) throw itemsError;
+
+      // Transform items to match expected format
+      const items = (orderItems || []).map(item => ({
+        id: item.product_id,
+        name: item.menu_items?.name || '',
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+        image: item.menu_items?.image || '',
+      }));
+
+      const orderNumber = `NU-2025-${activeOrder.order_id.toString().slice(-6)}`;
+
+      router.push({
+        pathname: "/OrderStatus",
+        params: {
+          id: activeOrder.order_id.toString(),
+          time: activeOrder.created_at,
+          status: activeOrder.status.toLowerCase(),
+          items: encodeURIComponent(JSON.stringify(items)),
+          total: activeOrder.total_amount.toString(),
+          payment: activeOrder.payment_method,
+          orderNumber: orderNumber,
+        },
+      });
+    } catch (error) {
+      console.error('Error loading order details:', error);
+      Alert.alert('Error', 'Failed to load order details.');
+    }
   };
 
   // Get display name
@@ -733,21 +759,15 @@ export default function Menu() {
           <Ionicons name="cart-outline" size={24} color="#ffffff" />
         </TouchableOpacity>
 
-        {/* Order Status Button - show only if an active order exists */}
-        {(activeOrder || (currentOrder && currentOrder.status !== "cancelled" && currentOrder.status !== "received" && currentOrder.status !== "Cancelled" && currentOrder.status !== "Completed")) && (
+        {/* Order Status Button - show only if an active order exists from database */}
+        {activeOrder && (
           <TouchableOpacity
             style={styles.menuStatusButton}
             onPress={handleOrderStatusPress}
             activeOpacity={0.9}
           >
             <Text style={styles.menuStatusBtnText}>
-              {activeOrder
-                ? "Check Order Status"
-                : timeLeft !== null && timeLeft > 0
-                ? `Check Order Status (${Math.ceil(timeLeft / 60)} min left)`
-                : currentOrder?.status === "ready"
-                ? "Order Ready - Check Status"
-                : "Check Order Status"}
+              Check Order Status ({activeOrder.status})
             </Text>
           </TouchableOpacity>
         )}

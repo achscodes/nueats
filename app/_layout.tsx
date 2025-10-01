@@ -33,6 +33,9 @@ export default function RootLayout() {
               <Stack.Screen name="Setting" />
               {/* ✅ Add Help & Support screen */}
               <Stack.Screen name="HelpSupport" />
+              {/* ✅ Add Payment screens for deep link redirect */}
+              <Stack.Screen name="payment-success" />
+              <Stack.Screen name="payment-failed" />
             </Stack>
           </OrderProvider>
         </CartProvider>

@@ -80,6 +80,37 @@ export default function Checkout() {
     return method.toLowerCase() === 'cash' ? 'Cash' : 'Paymongo';
   };
 
+  // Clear cart items from database
+  const clearCartFromDatabase = async () => {
+    try {
+      if (!user?.id) return;
+
+      // Get user's cart
+      const { data: cartRow, error: cartErr } = await supabase
+        .from("cart")
+        .select("cart_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (cartErr || !cartRow) {
+        console.error("Cart not found:", cartErr);
+        return;
+      }
+
+      // Delete all cart items for this cart
+      const { error: deleteErr } = await supabase
+        .from("cart_items")
+        .delete()
+        .eq("cart_id", cartRow.cart_id);
+
+      if (deleteErr) {
+        console.error("Failed to clear cart items:", deleteErr);
+      }
+    } catch (error) {
+      console.error("Error clearing cart from database:", error);
+    }
+  };
+
   // Save order to database
   const saveOrderToDatabase = async () => {
     if (!isAuthenticated || !user) {
@@ -126,6 +157,9 @@ export default function Checkout() {
         Alert.alert("Error", "Failed to save order items.");
         return null;
       }
+
+      // Clear cart items from database after successful order
+      await clearCartFromDatabase();
 
       // Create local order for tracking
       const orderNumber = `NU-2025-${orderData.order_id.toString().slice(-6)}`;
