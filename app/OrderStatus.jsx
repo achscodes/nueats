@@ -15,14 +15,17 @@ import { Ionicons } from "@expo/vector-icons";
 import orderStatusStyles, { ORDER_STATUS_COLORS } from "./src/OrderStatus.js";
 import { getItemById } from "./demodata/menuDemoData.js";
 import { OrderContext } from "./context/OrderContext";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 const { width } = Dimensions.get("window");
 
 export default function OrderStatus() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { createOrder, getTimeRemaining, getEstimatedReadyTime } =
+  const { createOrder, getTimeRemaining, getEstimatedReadyTime, clearOrder } =
     useContext(OrderContext);
+  const { user } = useAuth();
 
   const {
     id = "1",
@@ -97,7 +100,7 @@ export default function OrderStatus() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
-  const [currentOrderNumber, setCurrentOrderNumber] = useState(orderNumber); // ✅ Store order number in state
+  const [currentOrderNumber, setCurrentOrderNumber] = useState(orderNumber || (id ? `NU-2025-${id}` : null)); // ✅ Use NU-2025-{order_id} fallback
 
   // Animation for sliding to bottom
   const slideAnim = new Animated.Value(0);
@@ -261,7 +264,7 @@ export default function OrderStatus() {
     setShowReasonModal(true);
   };
 
-  const submitCancellation = () => {
+  const submitCancellation = async () => {
     if (!selectedReason) {
       Alert.alert(
         "Please select a reason",
@@ -270,12 +273,74 @@ export default function OrderStatus() {
       return;
     }
 
-    setOrderStatus("cancelled");
-    setShowReasonModal(false);
-    Alert.alert(
-      "Order Cancelled",
-      "Your order has been cancelled successfully."
-    );
+    try {
+      if (!user?.id) throw new Error("Not authenticated");
+
+      // 1) Update order to Cancelled for this user (guard by user_id via RLS)
+      const { error: orderErr } = await supabase
+        .from("orders")
+        .update({ status: "Cancelled" })
+        .eq("order_id", Number(id));
+      if (orderErr) throw orderErr;
+
+      // 2) Update related payment to cancelled
+      const { data: paymentRow, error: fetchPayErr } = await supabase
+        .from("payments")
+        .select("payment_id, status")
+        .eq("order_id", Number(id))
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (fetchPayErr) throw fetchPayErr;
+
+      if (paymentRow?.payment_id) {
+        const { error: payErr } = await supabase
+          .from("payments")
+          .update({ status: "cancelled" })
+          .eq("payment_id", paymentRow.payment_id);
+        if (payErr) throw payErr;
+
+        // 3) Log payment event (client-side insert allowed by RLS)
+        await supabase.from("payment_events").insert({
+          payment_id: paymentRow.payment_id,
+          provider: null,
+          event_type: "client.cancelled",
+          event_payload: { reason: selectedReason },
+        });
+      }
+
+      // 4) Insert cancellation reason into order_cancellations table
+      const { error: cancelErr } = await supabase
+        .from("order_cancellations")
+        .insert({
+          order_id: Number(id),
+          user_id: user.id,
+          reason: selectedReason,
+        });
+      if (cancelErr) {
+        console.error("Failed to log cancellation reason:", cancelErr);
+        // Don't throw - cancellation already processed
+      }
+
+      setOrderStatus("cancelled");
+      setShowReasonModal(false);
+      
+      // Clear order from context so it doesn't show in Menu
+      clearOrder();
+      
+      Alert.alert(
+        "Order Cancelled",
+        "Your order has been cancelled successfully.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/Menu"),
+          },
+        ]
+      );
+    } catch (e) {
+      console.error("Cancellation failed", e);
+      Alert.alert("Error", "Failed to cancel order. Please try again.");
+    }
   };
 
   const cancelReasons = [

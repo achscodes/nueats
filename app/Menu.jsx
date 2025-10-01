@@ -52,6 +52,7 @@ export default function Menu() {
     useContext(OrderContext);
 
   const { isGuest, getUserFirstName, getUserInitials, user, logout } = useAuth(); // Get auth state
+  const [activeOrder, setActiveOrder] = useState(null); // latest active order from DB
 
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
@@ -94,6 +95,31 @@ export default function Menu() {
       }
     }, [params.fromOrderStatus])
   );
+
+  // Fetch latest active order (Pending/Preparing) for user
+  useEffect(() => {
+    const fetchActiveOrder = async () => {
+      try {
+        if (!user?.id || isGuest) {
+          setActiveOrder(null);
+          return;
+        }
+        const { data, error } = await supabase
+          .from("orders")
+          .select("order_id, status, total_amount, payment_method, created_at")
+          .eq("user_id", user.id)
+          .in("status", ["Pending", "Preparing"]) // treat only these as active
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        setActiveOrder((data && data.length > 0) ? data[0] : null);
+      } catch (e) {
+        console.error("Failed to load active order", e);
+        setActiveOrder(null);
+      }
+    };
+    fetchActiveOrder();
+  }, [user?.id, isGuest]);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -707,22 +733,20 @@ export default function Menu() {
           <Ionicons name="cart-outline" size={24} color="#ffffff" />
         </TouchableOpacity>
 
-        {/* Order Status Button - Updated with live countdown */}
-        {currentOrder && (
+        {/* Order Status Button - show only if an active order exists */}
+        {(activeOrder || (currentOrder && currentOrder.status !== "cancelled" && currentOrder.status !== "received" && currentOrder.status !== "Cancelled" && currentOrder.status !== "Completed")) && (
           <TouchableOpacity
             style={styles.menuStatusButton}
             onPress={handleOrderStatusPress}
             activeOpacity={0.9}
           >
             <Text style={styles.menuStatusBtnText}>
-              {timeLeft !== null && timeLeft > 0
+              {activeOrder
+                ? "Check Order Status"
+                : timeLeft !== null && timeLeft > 0
                 ? `Check Order Status (${Math.ceil(timeLeft / 60)} min left)`
-                : currentOrder.status === "ready"
+                : currentOrder?.status === "ready"
                 ? "Order Ready - Check Status"
-                : currentOrder.status === "received"
-                ? "Order Completed"
-                : currentOrder.status === "cancelled"
-                ? "Order Cancelled"
                 : "Check Order Status"}
             </Text>
           </TouchableOpacity>

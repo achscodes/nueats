@@ -185,6 +185,7 @@ export default function Checkout() {
       time: orderDate,
       status: "preparing",
       prepTime: prepTime,
+      orderNumber: `NU-2025-${orderIdNum}`,
     });
 
     clearCart();
