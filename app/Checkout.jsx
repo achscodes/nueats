@@ -12,6 +12,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { CartContext } from "./context/CartContext";
 import { OrderContext } from "./context/OrderContext";
 import checkoutStyles from "./src/Checkout.js"; // Import dedicated checkout styles
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 export default function Checkout() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function Checkout() {
 
   const cartContext = useContext(CartContext);
   const orderContext = useContext(OrderContext);
+  const { user, isGuest } = useAuth();
 
   if (!cartContext) return <Text>Loading cart...</Text>;
   if (!orderContext) return <Text>Loading order...</Text>;
@@ -66,30 +69,127 @@ export default function Checkout() {
     return maxPrepTime + queueTime;
   };
 
-  // ✅ FIXED: Place order with proper order number generation
-  const handleOrder = () => {
+  // Place order: persist to Supabase, then clear cart in DB and UI
+  const handleOrder = async () => {
     if (cartItems.length === 0) return;
+    if (!user?.id || isGuest) {
+      // Require auth to place an order
+      router.push("/Login");
+      return;
+    }
 
-    const orderId = Date.now().toString();
-    const orderDate = new Date().toISOString();
-    const prepTime = calculatePrepTime();
-
-    // ✅ Use createOrder - this will generate the unique order number
-    const orderData = {
-      id: orderId,
-      items: cartItems,
-      total: totalAmount,
-      payment: selectedPayment,
-      time: orderDate,
-      status: "preparing", // Set initial status as preparing
-      prepTime: prepTime,
-      // ✅ DON'T include orderNumber - let createOrder generate it
+    // Normalize payment method to match DB enum
+    const mapPayment = (val) => {
+      switch (val) {
+        case "Gcash":
+        case "GCash":
+          return "GCash";
+        case "PayMaya":
+        case "Pay Maya":
+          return "PayMaya";
+        default:
+          return "Cash";
+      }
     };
 
-    // ✅ Create the order (this generates the unique order number)
-    const createdOrder = createOrder(orderData);
+    // 1) Ensure cart exists and get cart_id
+    const { error: upsertErr } = await supabase
+      .from("cart")
+      .upsert({ user_id: user.id }, { onConflict: "user_id" });
+    if (upsertErr) {
+      console.error("Failed to ensure cart:", upsertErr);
+      return;
+    }
+    const { data: cartRow, error: cartErr } = await supabase
+      .from("cart")
+      .select("cart_id")
+      .eq("user_id", user.id)
+      .single();
+    if (cartErr || !cartRow) {
+      console.error("Cart not found for user:", cartErr);
+      return;
+    }
 
-    // ✅ Navigate to OrderStatus with the generated order number
+    // 2) Create order
+    const paymentMethod = mapPayment(selectedPayment);
+    const { data: orderInsert, error: orderErr } = await supabase
+      .from("orders")
+      .insert({
+        user_id: user.id,
+        total_amount: Number(totalAmount),
+        payment_method: paymentMethod,
+        status: "Pending",
+      })
+      .select("order_id, created_at")
+      .single();
+    if (orderErr || !orderInsert) {
+      console.error("Failed to create order:", orderErr);
+      return;
+    }
+
+    const orderIdNum = orderInsert.order_id;
+
+    // 3) Insert order items in bulk
+    const itemsPayload = cartItems.map((ci) => ({
+      order_id: orderIdNum,
+      product_id: Number(ci.id),
+      quantity: Number(ci.quantity || 1),
+      price: Number(ci.price),
+    }));
+    if (itemsPayload.length > 0) {
+      const { error: itemsErr } = await supabase
+        .from("order_items")
+        .insert(itemsPayload);
+      if (itemsErr) {
+        console.error("Failed to insert order items:", itemsErr);
+        return;
+      }
+    }
+
+    // 4) Create payment row (pending)
+    const { data: paymentRow, error: payErr } = await supabase
+      .from("payments")
+      .insert({
+        order_id: orderIdNum,
+        user_id: user.id,
+        method: paymentMethod,
+        amount: Number(totalAmount),
+        status: "pending",
+        provider: null,
+      })
+      .select("payment_id")
+      .single();
+    if (payErr) {
+      console.error("Failed to create payment:", payErr);
+      return;
+    }
+
+    // 5) Clear user's cart in DB
+    const { error: clearErr } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("cart_id", cartRow.cart_id);
+    if (clearErr) {
+      console.error("Failed to clear cart items:", clearErr);
+      // Continue to clear UI to avoid stuck items
+    }
+
+    // 6) Sync UI state
+    const orderDate = new Date().toISOString();
+    const prepTime = calculatePrepTime();
+    const createdOrder = createOrder({
+      id: String(orderIdNum),
+      items: cartItems,
+      total: Number(totalAmount),
+      payment: paymentMethod,
+      time: orderDate,
+      status: "preparing",
+      prepTime: prepTime,
+    });
+
+    clearCart();
+
+    // 7) Navigate to OrderStatus
     router.replace({
       pathname: "/OrderStatus",
       params: {
@@ -99,11 +199,9 @@ export default function Checkout() {
         items: encodeURIComponent(JSON.stringify(createdOrder.items)),
         total: createdOrder.total.toString(),
         payment: createdOrder.payment,
-        orderNumber: createdOrder.orderNumber, // ✅ Pass the generated order number
+        orderNumber: createdOrder.orderNumber,
       },
     });
-
-    clearCart();
   };
 
   const renderItem = ({ item }) => (
