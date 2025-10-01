@@ -6,23 +6,24 @@ const CartProvider = ({ children }) => {
 
 
   const addToCart = (item, qty = 1) => {
+    const normalizedId = Number(item.id);
     setCartItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      const existing = prev.find((i) => Number(i.id) === normalizedId);
       if (existing) {
-        // If already exists, just increase quantity
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + qty } : i
+          Number(i.id) === normalizedId
+            ? { ...i, id: normalizedId, quantity: i.quantity + qty }
+            : i
         );
-      } else {
-
-        return [...prev, { ...item, quantity: qty }];
       }
+      return [...prev, { ...item, id: normalizedId, quantity: qty }];
     });
   };
 
  
   const removeFromCart = (id) => {
-    setCartItems((prev) => prev.filter((i) => i.id !== id));
+    const normalizedId = Number(id);
+    setCartItems((prev) => prev.filter((i) => Number(i.id) !== normalizedId));
   };
 
 
@@ -30,19 +31,23 @@ const CartProvider = ({ children }) => {
 
  
   const increaseQty = (id) => {
+    const normalizedId = Number(id);
     setCartItems((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+        Number(item.id) === normalizedId
+          ? { ...item, id: normalizedId, quantity: item.quantity + 1 }
+          : item
       )
     );
   };
 
 
   const decreaseQty = (id) => {
+    const normalizedId = Number(id);
     setCartItems((prev) =>
       prev.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
+        Number(item.id) === normalizedId
+          ? { ...item, id: normalizedId, quantity: Math.max(1, item.quantity - 1) }
           : item
       )
     );

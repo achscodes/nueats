@@ -17,7 +17,11 @@ import checkoutStyles from "./src/Checkout.js";
 
 // Payment methods array
 const paymentMethods = [
-  { label: "Cash", value: "cash", icon: require("../assets/images/Cash.png") },
+  { 
+    label: "Cash", 
+    value: "cash", 
+    icon: require("../assets/images/Cash.png") 
+  },
   {
     label: "PayMongo",
     value: "paymongo",
@@ -39,24 +43,6 @@ export default function Checkout() {
   const { createOrder } = orderContext;
 
   const [selectedPayment, setSelectedPayment] = useState("cash");
-
-  // ✅ ✅ LISTEN FOR DEEPLINK REDIRECTS
-  useEffect(() => {
-    const handleDeepLink = ({ url }) => {
-      if (url.includes("payment-success")) {
-        Alert.alert("Payment Successful!", "Thank you for your order.");
-        placeLocalOrder(); // Create order here when payment is successful
-      } else if (url.includes("payment-failed")) {
-        Alert.alert("Payment Failed", "You can try again or choose another method.");
-      }
-    };
-
-    const subscription = Linking.addEventListener("url", handleDeepLink);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (params.reorderItems) {
@@ -86,7 +72,7 @@ export default function Checkout() {
     return maxPrepTime + queueTime;
   };
 
-  // Create the local order (used by cash or successful PayMongo)
+  // Place local order for cash payments
   const placeLocalOrder = () => {
     const orderId = Date.now().toString();
     const orderDate = new Date().toISOString();
@@ -118,17 +104,14 @@ export default function Checkout() {
     });
 
     clearCart();
+    Alert.alert("Order placed!", "Thank you for your order.");
   };
 
+  // Updated handleOrder function
   const handleOrder = async () => {
     if (cartItems.length === 0) return;
 
     try {
-      console.log("Calling payment function with:", {
-        amount: totalAmount,
-        payment_method_type: selectedPayment.toLowerCase(),
-      });
-
       const { data, error } = await supabase.functions.invoke("payment", {
         body: {
           amount: totalAmount,
@@ -136,17 +119,8 @@ export default function Checkout() {
         },
       });
 
-      console.log("EDGE FUNCTION RESPONSE:", data);
-      console.log("EDGE FUNCTION ERROR:", error);
-
       if (error) {
-        console.error("Supabase function error:", error);
-        alert(`Payment failed: ${error.message}`);
-        return;
-      }
-
-      if (!data) {
-        alert("No response from payment service");
+        alert("Payment failed. Try again.");
         return;
       }
 
@@ -155,15 +129,14 @@ export default function Checkout() {
       } else if (selectedPayment.toLowerCase() === "paymongo") {
         const redirectUrl = data?.redirect_url;
         if (redirectUrl) {
-          console.log("Redirecting to:", redirectUrl);
           Linking.openURL(redirectUrl);
         } else {
           alert("Payment could not be initiated. Try again later.");
         }
       }
     } catch (e) {
-      console.error("Payment error:", e);
-      alert(`Payment error: ${e.message}`);
+      console.log(e);
+      alert("Payment error occurred.");
     }
   };
 
