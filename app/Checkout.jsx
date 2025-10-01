@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { CartContext } from "./context/CartContext";
 import { OrderContext } from "./context/OrderContext";
+import { useAuth } from "./context/AuthContext";
 import checkoutStyles from "./src/Checkout.js";
 
 // Payment methods array
@@ -35,6 +36,7 @@ export default function Checkout() {
 
   const cartContext = useContext(CartContext);
   const orderContext = useContext(OrderContext);
+  const { user, isAuthenticated } = useAuth();
 
   if (!cartContext) return <Text>Loading cart...</Text>;
   if (!orderContext) return <Text>Loading order...</Text>;
@@ -72,72 +74,177 @@ export default function Checkout() {
     return maxPrepTime + queueTime;
   };
 
+  // Helper function to map payment method to database format
+  const mapPaymentMethod = (method) => {
+    // PayMongo handles both GCash and PayMaya, store as Paymongo in DB
+    return method.toLowerCase() === 'cash' ? 'Cash' : 'Paymongo';
+  };
+
+  // Save order to database
+  const saveOrderToDatabase = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Authentication Required", "Please login to place an order.");
+      return null;
+    }
+
+    try {
+      const prepTime = calculatePrepTime();
+      const paymentMethod = mapPaymentMethod(selectedPayment);
+
+      // Insert order into database
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          total_amount: totalAmount,
+          payment_method: paymentMethod,
+          status: 'Preparing',
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Order insert error:', orderError);
+        Alert.alert("Error", "Failed to create order. Please try again.");
+        return null;
+      }
+
+      // Insert order items into database
+      const orderItems = cartItems.map(item => ({
+        order_id: orderData.order_id,
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items insert error:', itemsError);
+        Alert.alert("Error", "Failed to save order items.");
+        return null;
+      }
+
+      // Create local order for tracking
+      const orderNumber = `NU-2025-${orderData.order_id.toString().slice(-6)}`;
+      const localOrderData = {
+        id: orderData.order_id.toString(),
+        items: cartItems,
+        total: totalAmount,
+        payment: paymentMethod,
+        time: orderData.created_at,
+        status: "preparing",
+        prepTime: prepTime,
+        orderNumber: orderNumber,
+      };
+
+      const createdOrder = createOrder(localOrderData);
+
+      return {
+        ...createdOrder,
+        order_id: orderData.order_id,
+      };
+    } catch (error) {
+      console.error('Error saving order:', error);
+      Alert.alert("Error", "An unexpected error occurred.");
+      return null;
+    }
+  };
+
   // Place local order for cash payments
-  const placeLocalOrder = () => {
-    const orderId = Date.now().toString();
-    const orderDate = new Date().toISOString();
-    const prepTime = calculatePrepTime();
+  const placeLocalOrder = async () => {
+    const order = await saveOrderToDatabase();
+    
+    if (order) {
+      router.replace({
+        pathname: "/OrderStatus",
+        params: {
+          id: order.id,
+          time: order.time,
+          status: order.status,
+          items: encodeURIComponent(JSON.stringify(order.items)),
+          total: order.total.toString(),
+          payment: order.payment,
+          orderNumber: order.orderNumber,
+        },
+      });
 
-    const orderData = {
-      id: orderId,
-      items: cartItems,
-      total: totalAmount,
-      payment: selectedPayment,
-      time: orderDate,
-      status: "preparing",
-      prepTime: prepTime,
-      orderNumber: `NU-2025-${orderIdNum}`,
-    });
-
-    const createdOrder = createOrder(orderData);
-
-    router.replace({
-      pathname: "/OrderStatus",
-      params: {
-        id: createdOrder.id,
-        time: createdOrder.time,
-        status: createdOrder.status,
-        items: encodeURIComponent(JSON.stringify(createdOrder.items)),
-        total: createdOrder.total.toString(),
-        payment: createdOrder.payment,
-        orderNumber: createdOrder.orderNumber,
-      },
-    });
-
-    clearCart();
-    Alert.alert("Order placed!", "Thank you for your order.");
+      clearCart();
+      Alert.alert("Order placed!", "Thank you for your order.");
+    }
   };
 
   // Updated handleOrder function
   const handleOrder = async () => {
-    if (cartItems.length === 0) return;
+    if (cartItems.length === 0) {
+      Alert.alert("Empty Cart", "Please add items to your cart.");
+      return;
+    }
+
+    if (!isAuthenticated || !user) {
+      Alert.alert("Authentication Required", "Please login to place an order.");
+      router.push("/Login");
+      return;
+    }
 
     try {
-      const { data, error } = await supabase.functions.invoke("payment", {
-        body: {
-          amount: totalAmount,
-          payment_method_type: selectedPayment.toLowerCase(),
-        },
-      });
-
-      if (error) {
-        alert("Payment failed. Try again.");
-        return;
-      }
-
       if (selectedPayment.toLowerCase() === "cash") {
-        placeLocalOrder();
+        // For cash payments, save directly to database
+        await placeLocalOrder();
       } else if (selectedPayment.toLowerCase() === "paymongo") {
+        // Step 1: Save order to database first
+        const order = await saveOrderToDatabase();
+        
+        if (!order) {
+          return; // Error already shown in saveOrderToDatabase
+        }
+
+        // Step 2: Invoke payment function after order is saved
+        const { data, error } = await supabase.functions.invoke("payment", {
+          body: {
+            amount: totalAmount,
+            payment_method_type: selectedPayment.toLowerCase(),
+            order_id: order.order_id,
+          },
+        });
+
+        if (error) {
+          Alert.alert("Payment Error", "Payment initiation failed. Try again.");
+          return;
+        }
+
         const redirectUrl = data?.redirect_url;
         if (redirectUrl) {
-          Linking.openURL(redirectUrl);
+          // Step 3: Clear cart first
+          clearCart();
+          
+          // Step 4: Navigate to order status
+          router.replace({
+            pathname: "/OrderStatus",
+            params: {
+              id: order.id,
+              time: order.time,
+              status: order.status,
+              items: encodeURIComponent(JSON.stringify(order.items)),
+              total: order.total.toString(),
+              payment: order.payment,
+              orderNumber: order.orderNumber,
+            },
+          });
+          
+          // Step 5: Open PayMongo URL last (after navigation)
+          setTimeout(() => {
+            Linking.openURL(redirectUrl);
+          }, 500);
         } else {
-          alert("Payment could not be initiated. Try again later.");
+          Alert.alert("Payment Error", "Payment could not be initiated. Try again later.");
         }
       }
     } catch (e) {
-      console.log(e);
-      alert("Payment error occurred.");
+      console.error("Order error:", e);
+      Alert.alert("Error", "An unexpected error occurred while placing your order.");
     }
   };
 
