@@ -1,4 +1,3 @@
-// Checkout.jsx
 import React, { useContext, useState, useEffect } from "react";
 import {
   View,
@@ -7,11 +6,24 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  Alert,
+  Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { supabase } from "../lib/supabase";
 import { CartContext } from "./context/CartContext";
 import { OrderContext } from "./context/OrderContext";
-import checkoutStyles from "./src/Checkout.js"; // Import dedicated checkout styles
+import checkoutStyles from "./src/Checkout.js";
+
+// Payment methods array
+const paymentMethods = [
+  { label: "Cash", value: "cash", icon: require("../assets/images/Cash.png") },
+  {
+    label: "PayMongo",
+    value: "paymongo",
+    icon: require("../assets/images/Maya.png"),
+  },
+];
 
 export default function Checkout() {
   const router = useRouter();
@@ -23,15 +35,29 @@ export default function Checkout() {
   if (!cartContext) return <Text>Loading cart...</Text>;
   if (!orderContext) return <Text>Loading order...</Text>;
 
-  const { cartItems, increaseQty, decreaseQty, clearCart, addToCart } =
-    cartContext;
-
-  // ✅ Use createOrder instead of setCurrentOrder
+  const { cartItems, clearCart, addToCart } = cartContext;
   const { createOrder } = orderContext;
 
-  const [selectedPayment, setSelectedPayment] = useState("Gcash");
+  const [selectedPayment, setSelectedPayment] = useState("cash");
 
-  // Handle reorder items from params
+  // ✅ ✅ LISTEN FOR DEEPLINK REDIRECTS
+  useEffect(() => {
+    const handleDeepLink = ({ url }) => {
+      if (url.includes("payment-success")) {
+        Alert.alert("Payment Successful!", "Thank you for your order.");
+        placeLocalOrder(); // Create order here when payment is successful
+      } else if (url.includes("payment-failed")) {
+        Alert.alert("Payment Failed", "You can try again or choose another method.");
+      }
+    };
+
+    const subscription = Linking.addEventListener("url", handleDeepLink);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   useEffect(() => {
     if (params.reorderItems) {
       try {
@@ -51,45 +77,33 @@ export default function Checkout() {
     0
   );
 
-  // Calculate prep time based on items
   const calculatePrepTime = () => {
     if (cartItems.length === 0) return 15;
-
-    // Get the maximum prep time from all items (they can be prepared in parallel)
     const maxPrepTime = Math.max(
       ...cartItems.map((item) => item.prep_time || 15)
     );
-
-    // Add queue time (2-5 minutes)
     const queueTime = 5;
-
     return maxPrepTime + queueTime;
   };
 
-  // ✅ FIXED: Place order with proper order number generation
-  const handleOrder = () => {
-    if (cartItems.length === 0) return;
-
+  // Create the local order (used by cash or successful PayMongo)
+  const placeLocalOrder = () => {
     const orderId = Date.now().toString();
     const orderDate = new Date().toISOString();
     const prepTime = calculatePrepTime();
 
-    // ✅ Use createOrder - this will generate the unique order number
     const orderData = {
       id: orderId,
       items: cartItems,
       total: totalAmount,
       payment: selectedPayment,
       time: orderDate,
-      status: "preparing", // Set initial status as preparing
+      status: "preparing",
       prepTime: prepTime,
-      // ✅ DON'T include orderNumber - let createOrder generate it
     };
 
-    // ✅ Create the order (this generates the unique order number)
     const createdOrder = createOrder(orderData);
 
-    // ✅ Navigate to OrderStatus with the generated order number
     router.replace({
       pathname: "/OrderStatus",
       params: {
@@ -99,60 +113,66 @@ export default function Checkout() {
         items: encodeURIComponent(JSON.stringify(createdOrder.items)),
         total: createdOrder.total.toString(),
         payment: createdOrder.payment,
-        orderNumber: createdOrder.orderNumber, // ✅ Pass the generated order number
+        orderNumber: createdOrder.orderNumber,
       },
     });
 
     clearCart();
   };
 
-  const renderItem = ({ item }) => (
-    <View style={checkoutStyles.checkoutItemCard} key={item.id}>
-      <Image
-        source={{ uri: item.image }}
-        style={checkoutStyles.checkoutItemImage}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={checkoutStyles.checkoutItemName}>{item.name}</Text>
-        <Text style={checkoutStyles.checkoutItemQty}>x{item.quantity}</Text>
-      </View>
-      <Text style={checkoutStyles.checkoutItemPrice}>
-        ₱{item.price * item.quantity}
-      </Text>
-    </View>
-  );
+  const handleOrder = async () => {
+    if (cartItems.length === 0) return;
 
-  const paymentMethods = [
-    {
-      label: "Gcash ••••••••••••7143",
-      value: "Gcash",
-      icon: require("../assets/images/Gcash.png"),
-    },
-    {
-      label: "Cash",
-      value: "Cash",
-      icon: require("../assets/images/Cash.png"),
-    },
-    {
-      label: "Pay Maya",
-      value: "PayMaya",
-      icon: require("../assets/images/Maya.png"),
-    },
-  ];
+    try {
+      console.log("Calling payment function with:", {
+        amount: totalAmount,
+        payment_method_type: selectedPayment.toLowerCase(),
+      });
 
-  // Create sections for FlatList rendering
+      const { data, error } = await supabase.functions.invoke("payment", {
+        body: {
+          amount: totalAmount,
+          payment_method_type: selectedPayment.toLowerCase(),
+        },
+      });
+
+      console.log("EDGE FUNCTION RESPONSE:", data);
+      console.log("EDGE FUNCTION ERROR:", error);
+
+      if (error) {
+        console.error("Supabase function error:", error);
+        alert(`Payment failed: ${error.message}`);
+        return;
+      }
+
+      if (!data) {
+        alert("No response from payment service");
+        return;
+      }
+
+      if (selectedPayment.toLowerCase() === "cash") {
+        placeLocalOrder();
+      } else if (selectedPayment.toLowerCase() === "paymongo") {
+        const redirectUrl = data?.redirect_url;
+        if (redirectUrl) {
+          console.log("Redirecting to:", redirectUrl);
+          Linking.openURL(redirectUrl);
+        } else {
+          alert("Payment could not be initiated. Try again later.");
+        }
+      }
+    } catch (e) {
+      console.error("Payment error:", e);
+      alert(`Payment error: ${e.message}`);
+    }
+  };
+
   const sections = [
-    {
-      type: "items",
-      data: cartItems,
-    },
-    {
-      type: "payment",
-      data: paymentMethods,
-    },
+    { type: "items", data: cartItems },
+    { type: "payment", data: paymentMethods },
   ];
 
-  const renderSection = ({ item, index }) => {
+  const renderSection = ({ item }) => {
     if (item.type === "items") {
       return (
         <View style={checkoutStyles.itemsCard}>
@@ -162,7 +182,7 @@ export default function Checkout() {
               Your cart is empty
             </Text>
           ) : (
-            item.data.map((cartItem, idx) => (
+            item.data.map((cartItem) => (
               <View
                 key={cartItem.id || cartItem.name}
                 style={checkoutStyles.checkoutItemCard}
@@ -217,7 +237,6 @@ export default function Checkout() {
 
   return (
     <SafeAreaView style={checkoutStyles.container}>
-      {/* Header */}
       <View style={checkoutStyles.checkoutHeader}>
         <TouchableOpacity
           onPress={() => router.replace("/Cart")}
@@ -225,11 +244,9 @@ export default function Checkout() {
         >
           <Text style={checkoutStyles.checkoutBackArrow}>←</Text>
         </TouchableOpacity>
-
         <Text style={checkoutStyles.checkoutHeaderText}>CHECKOUT</Text>
       </View>
 
-      {/* Replace ScrollView + FlatList with single FlatList */}
       <FlatList
         data={sections}
         renderItem={renderSection}
@@ -238,7 +255,6 @@ export default function Checkout() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Total + Order Button */}
       <View style={checkoutStyles.bottomSection}>
         <View style={checkoutStyles.total}>
           <Text style={checkoutStyles.totalText}>TOTAL</Text>
