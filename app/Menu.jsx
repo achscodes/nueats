@@ -96,7 +96,7 @@ export default function Menu() {
     }, [params.fromOrderStatus])
   );
 
-  // Fetch latest active order (Pending/Preparing) for user - refresh on focus
+  // Fetch latest active order (Pending/Preparing/Ready) for user - refresh on focus
   useFocusEffect(
     React.useCallback(() => {
       const fetchActiveOrder = async () => {
@@ -109,7 +109,7 @@ export default function Menu() {
             .from("orders")
             .select("order_id, status, total_amount, payment_method, created_at")
             .eq("user_id", user.id)
-            .in("status", ["Pending", "Preparing"]) // treat only these as active
+            .in("status", ["Pending", "Preparing", "Ready"]) // treat these as active
             .order("created_at", { ascending: false })
             .limit(1);
           if (error) throw error;
