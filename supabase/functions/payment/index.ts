@@ -21,7 +21,7 @@ serve(async (req)=>{
   try {
     // Parse request body
     const body = await req.json();
-    const { amount, payment_method_type } = body;
+    const { amount, payment_method_type, order_id } = body;
     if (!amount || amount < 1) {
       return new Response(JSON.stringify({
         error: "Amount must be at least 1"
@@ -60,6 +60,9 @@ serve(async (req)=>{
     // ✅ Handle PayMongo checkout
     if (payment_method_type.toLowerCase() === "paymongo") {
       const PAYMONGO_SECRET_KEY = Deno.env.get("PAYMONGO_SECRET_KEY");
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+      
       if (!PAYMONGO_SECRET_KEY) {
         return new Response(JSON.stringify({
           error: "Payment gateway not configured"
@@ -121,6 +124,8 @@ serve(async (req)=>{
         });
       }
       const checkoutUrl = paymongoData?.data?.attributes?.checkout_url;
+      const sessionId = paymongoData?.data?.id;
+      
       if (!checkoutUrl) {
         return new Response(JSON.stringify({
           error: "Invalid payment gateway response",
@@ -133,6 +138,28 @@ serve(async (req)=>{
           }
         });
       }
+      
+      // Update payment record with PayMongo session details if order_id is provided
+      if (order_id && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.39.3');
+          const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          
+          await supabase
+            .from('payments')
+            .update({
+              provider_intent_id: sessionId,
+              status: 'processing',
+              metadata: paymongoData?.data?.attributes || {}
+            })
+            .eq('order_id', order_id)
+            .eq('status', 'pending');
+        } catch (updateError) {
+          console.error('Failed to update payment record:', updateError);
+          // Don't fail the request if payment update fails
+        }
+      }
+      
       return new Response(JSON.stringify({
         status: "success",
         redirect_url: checkoutUrl

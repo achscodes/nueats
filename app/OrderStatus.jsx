@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -101,9 +102,66 @@ export default function OrderStatus() {
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
   const [currentOrderNumber, setCurrentOrderNumber] = useState(orderNumber || (id ? `NU-2025-${id}` : null)); // ✅ Use NU-2025-{order_id} fallback
+  const [refreshing, setRefreshing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("pending");
 
   // Animation for sliding to bottom
   const slideAnim = new Animated.Value(0);
+
+  // Function to fetch latest order status from database
+  const fetchOrderStatus = async () => {
+    try {
+      if (!user?.id || !id) return;
+
+      // Fetch order status
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('status, updated_at')
+        .eq('order_id', Number(id))
+        .eq('user_id', user.id)
+        .single();
+
+      if (orderError) {
+        console.error('Error fetching order status:', orderError);
+        return;
+      }
+
+      if (orderData) {
+        // Map database status to app status
+        const dbStatusMap = {
+          'Pending': 'pending',
+          'Preparing': 'preparing',
+          'Ready': 'ready',
+          'Completed': 'received',
+          'Cancelled': 'cancelled'
+        };
+        
+        const newStatus = dbStatusMap[orderData.status] || orderData.status.toLowerCase();
+        setOrderStatus(newStatus);
+      }
+
+      // Fetch payment status
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .select('status, provider_intent_id, provider_reference')
+        .eq('order_id', Number(id))
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!paymentError && paymentData) {
+        setPaymentStatus(paymentData.status);
+      }
+    } catch (error) {
+      console.error('Error in fetchOrderStatus:', error);
+    }
+  };
+
+  // Pull to refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrderStatus();
+    setRefreshing(false);
+  };
 
   // Initialize order in context and set up countdown
   useEffect(() => {
@@ -125,7 +183,19 @@ export default function OrderStatus() {
     if (!currentOrderNumber && finalOrder.orderNumber) {
       setCurrentOrderNumber(finalOrder.orderNumber);
     }
+
+    // Fetch initial order status from database
+    fetchOrderStatus();
   }, []);
+
+  // Auto-refresh order status every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrderStatus();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [id, user]);
 
   // Update countdown using context method
   useEffect(() => {
@@ -227,24 +297,6 @@ export default function OrderStatus() {
       timeDiff <= 5 &&
       (orderStatus === "preparing" || orderStatus === "pending")
     );
-  };
-
-  // Test button handlers
-  const handleMakePreparing = () => {
-    setOrderStatus("preparing");
-  };
-
-  const handleMakeReady = () => {
-    setOrderStatus("ready");
-    setRemaining(0);
-  };
-
-  const handleMakeCancelled = () => {
-    setOrderStatus("cancelled");
-  };
-
-  const handleMarkReceived = () => {
-    setOrderStatus("received");
   };
 
   // Cancel order handlers
@@ -533,65 +585,6 @@ export default function OrderStatus() {
     );
   };
 
-  // Render test buttons (only in development)
-  const renderTestButtons = () => {
-    const isDevelopment = __DEV__ || true; // Always show for testing
-
-    if (!isDevelopment) return null;
-
-    return (
-      <View style={orderStatusStyles.testButtonsContainer}>
-        <Text style={orderStatusStyles.testButtonsTitle}>
-          Test Controls (Dev Only)
-        </Text>
-        <View style={orderStatusStyles.testButtonsRow}>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.primary },
-            ]}
-            onPress={handleMakePreparing}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Make Preparing</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.orange },
-            ]}
-            onPress={handleMakeReady}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Make Ready</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={orderStatusStyles.testButtonsRow}>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.danger },
-            ]}
-            onPress={handleMakeCancelled}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Cancel Order</Text>
-          </TouchableOpacity>
-          {orderStatus === "ready" && (
-            <TouchableOpacity
-              style={[
-                orderStatusStyles.testButton,
-                { backgroundColor: ORDER_STATUS_COLORS.green },
-              ]}
-              onPress={handleMarkReceived}
-            >
-              <Text style={orderStatusStyles.testButtonText}>
-                Mark Received
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
-
   // Render cancel confirmation modal
   const renderCancelModal = () => (
     <Modal
@@ -731,7 +724,19 @@ export default function OrderStatus() {
         <View style={orderStatusStyles.orderStatusSide} />
       </View>
 
-      <ScrollView contentContainerStyle={{ alignItems: "center" }}>
+      <ScrollView 
+        contentContainerStyle={{ alignItems: "center" }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[ORDER_STATUS_COLORS.accent]}
+            tintColor={ORDER_STATUS_COLORS.accent}
+            title="Pull to refresh order status"
+            titleColor={ORDER_STATUS_COLORS.accent}
+          />
+        }
+      >
         <View style={orderStatusStyles.orderStatusCard}>
           {/* Order Number Display */}
           <Text style={orderStatusStyles.orderNumberText}>
@@ -801,6 +806,17 @@ export default function OrderStatus() {
             <Text style={orderStatusStyles.orderStatusPaymentText}>
               Payment Method: {payment}
             </Text>
+            <Text style={[
+              orderStatusStyles.orderStatusPaymentText,
+              { fontSize: 12, marginTop: 2, color: 
+                paymentStatus === 'paid' ? ORDER_STATUS_COLORS.success :
+                paymentStatus === 'failed' ? ORDER_STATUS_COLORS.danger :
+                paymentStatus === 'processing' ? ORDER_STATUS_COLORS.orange :
+                ORDER_STATUS_COLORS.grey
+              }
+            ]}>
+              Payment Status: {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+            </Text>
             <Text style={orderStatusStyles.orderStatusTotalText}>
               Total: ₱{parseFloat(total).toFixed(2)}
             </Text>
@@ -849,9 +865,6 @@ export default function OrderStatus() {
               </Text>
             </TouchableOpacity>
           )}
-
-          {/* Test Buttons */}
-          {renderTestButtons()}
         </View>
       </ScrollView>
 

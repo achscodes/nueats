@@ -122,14 +122,13 @@ export default function Checkout() {
       const prepTime = calculatePrepTime();
       const paymentMethod = mapPaymentMethod(selectedPayment);
 
-      // Insert order into database
+      // Insert order into database (status defaults to 'Pending' from DB)
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user.id,
           total_amount: totalAmount,
           payment_method: paymentMethod,
-          status: 'Preparing',
         })
         .select()
         .single();
@@ -137,6 +136,24 @@ export default function Checkout() {
       if (orderError) {
         console.error('Order insert error:', orderError);
         Alert.alert("Error", "Failed to create order. Please try again.");
+        return null;
+      }
+
+      // Create payment record for this order
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          order_id: orderData.order_id,
+          user_id: user.id,
+          method: paymentMethod,
+          amount: totalAmount,
+          status: 'pending',
+          provider: paymentMethod === 'Cash' ? null : 'Paymongo',
+        });
+
+      if (paymentError) {
+        console.error('Payment insert error:', paymentError);
+        Alert.alert("Error", "Failed to create payment record. Please try again.");
         return null;
       }
 
@@ -169,7 +186,7 @@ export default function Checkout() {
         total: totalAmount,
         payment: paymentMethod,
         time: orderData.created_at,
-        status: "preparing",
+        status: "pending",
         prepTime: prepTime,
         orderNumber: orderNumber,
       };
