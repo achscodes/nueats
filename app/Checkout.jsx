@@ -258,6 +258,7 @@ export default function Checkout() {
             amount: totalAmount,
             payment_method_type: selectedPayment.toLowerCase(),
             order_id: order.order_id,
+            user_id: user.id,
           },
         });
 
