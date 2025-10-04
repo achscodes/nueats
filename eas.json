@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">= 15.0.6",
+    "appVersionSource": "remote",
+    "requireCommit": "true"
+  },
+  "build": {
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  }
+}
