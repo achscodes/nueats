@@ -12,11 +12,16 @@ import {
   Animated,
   ActivityIndicator,
   ScrollView,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import transactionStyles from "./src/Transaction.js";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/FontAwesome";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./context/AuthContext";
 
@@ -36,6 +41,16 @@ const Transactions = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Rating state
+  const [orderRating, setOrderRating] = useState(null);
+  const [isRatingMode, setIsRatingMode] = useState(false);
+  const [ratingStars, setRatingStars] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  
+  // Scroll ref for modal
+  const modalScrollRef = useRef(null);
 
   // Filter dropdowns
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -160,6 +175,129 @@ const Transactions = () => {
     }
     return new Date(a.dateTime) - new Date(b.dateTime);
   });
+
+  // Fetch rating for selected order
+  const fetchOrderRating = async (orderId) => {
+    try {
+      const { data, error } = await supabase
+        .from('ratings')
+        .select('rating_id, stars, feedback, created_at')
+        .eq('order_id', orderId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 is "not found" - that's okay
+        throw error;
+      }
+      
+      setOrderRating(data || null);
+      
+      // If rating exists, set the stars and feedback for editing
+      if (data) {
+        setRatingStars(data.stars);
+        setRatingFeedback(data.feedback || '');
+      } else {
+        setRatingStars(0);
+        setRatingFeedback('');
+      }
+    } catch (error) {
+      console.error('Error fetching rating:', error);
+      setOrderRating(null);
+    }
+  };
+
+  // Check if rating is editable (within 30 days)
+  const isRatingEditable = (createdAt) => {
+    if (!createdAt) return false;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return new Date(createdAt) > thirtyDaysAgo;
+  };
+
+  // Submit rating
+  const submitRating = async () => {
+    if (ratingStars === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+
+    if (ratingFeedback.trim() === '') {
+      Alert.alert('Feedback Required', 'Please provide your feedback.');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const { error } = await supabase
+        .from('ratings')
+        .insert({
+          order_id: selectedOrder.id,
+          stars: ratingStars,
+          feedback: ratingFeedback.trim(),
+        });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Thank you for your rating!');
+      setIsRatingMode(false);
+      await fetchOrderRating(selectedOrder.id); // Refresh rating
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Error', error.message || 'Failed to submit rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  // Update rating
+  const updateRating = async () => {
+    if (ratingStars === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+
+    if (ratingFeedback.trim() === '') {
+      Alert.alert('Feedback Required', 'Please provide your feedback.');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const { error } = await supabase
+        .from('ratings')
+        .update({
+          stars: ratingStars,
+          feedback: ratingFeedback.trim(),
+        })
+        .eq('rating_id', orderRating.rating_id);
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Rating updated successfully!');
+      setIsRatingMode(false);
+      await fetchOrderRating(selectedOrder.id); // Refresh rating
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      Alert.alert('Error', error.message || 'Failed to update rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  // Handle opening modal
+  const handleOrderPress = async (order) => {
+    setSelectedOrder(order);
+    setIsRatingMode(false);
+    
+    // Fetch rating if order is completed
+    if (order.status === 'Completed') {
+      await fetchOrderRating(order.id);
+    } else {
+      setOrderRating(null);
+    }
+    
+    setModalVisible(true);
+  };
 
   return (
     <View style={transactionStyles.transactionMainContainer}>
@@ -430,7 +568,7 @@ const Transactions = () => {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={transactionStyles.transactionOrderCard}
-              onPress={() => setSelectedOrder(item) || setModalVisible(true)}
+              onPress={() => handleOrderPress(item)}
             >
               <View style={transactionStyles.transactionOrderHeaderRow}>
                 <Text style={transactionStyles.transactionOrderNumber}>
@@ -468,12 +606,25 @@ const Transactions = () => {
         visible={modalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setIsRatingMode(false);
+          Keyboard.dismiss();
+        }}
       >
         <View style={transactionStyles.transactionModalOverlay}>
-          <View style={transactionStyles.transactionModalContainer}>
-            {selectedOrder && (
-              <View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+          >
+            <View style={[transactionStyles.transactionModalContainer, { maxHeight: '90%', width: '92%', minWidth: 350, marginHorizontal: 15 }]}>
+              {selectedOrder && (
+                <ScrollView 
+                  ref={modalScrollRef}
+                  showsVerticalScrollIndicator={true}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  keyboardShouldPersistTaps="handled"
+                >
                 <Text style={transactionStyles.transactionModalOrderNumber}>
                   {selectedOrder.orderNumber}
                 </Text>
@@ -486,12 +637,12 @@ const Transactions = () => {
                 <Text style={transactionStyles.transactionModalSectionTitle}>
                   Items
                 </Text>
-                <ScrollView 
-                  style={{ maxHeight: 200 }}
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                >
-                  {selectedOrder.items.map((food, idx) => (
+                <View style={{ maxHeight: 200 }}>
+                  <ScrollView 
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {selectedOrder.items.map((food, idx) => (
                     <View
                       key={idx}
                       style={transactionStyles.transactionModalFoodRow}
@@ -512,8 +663,9 @@ const Transactions = () => {
                         ₱{parseFloat(food.price).toFixed(2)}
                       </Text>
                     </View>
-                  ))}
-                </ScrollView>
+                    ))}
+                  </ScrollView>
+                </View>
                 <Text style={transactionStyles.transactionModalSectionTitle}>
                   Payment Method
                 </Text>
@@ -523,15 +675,186 @@ const Transactions = () => {
                 <Text style={transactionStyles.transactionModalTotal}>
                   Total: ₱{parseFloat(selectedOrder.total).toFixed(2)}
                 </Text>
-                <TouchableOpacity
-                  style={transactionStyles.transactionCloseModalBtn}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+
+                {/* Rating Section - Only for Completed Orders */}
+                {selectedOrder.status === 'Completed' && (
+                  <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#eee' }}>
+                    {!isRatingMode ? (
+                      // Show existing rating or "Rate" button
+                      orderRating ? (
+                        <View>
+                          <Text style={transactionStyles.transactionModalSectionTitle}>
+                            Your Rating
+                          </Text>
+                          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Icon
+                                key={star}
+                                name="star"
+                                size={24}
+                                color={star <= orderRating.stars ? "#FFCC00" : "gray"}
+                                style={{ marginRight: 4 }}
+                              />
+                            ))}
+                          </View>
+                          <Text style={{ color: '#666', marginBottom: 10 }}>
+                            {orderRating.feedback}
+                          </Text>
+                          {isRatingEditable(orderRating.created_at) && (
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#2c3e91',
+                                padding: 10,
+                                borderRadius: 8,
+                                alignItems: 'center',
+                              }}
+                              onPress={() => setIsRatingMode(true)}
+                            >
+                              <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                                Edit Rating
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: '#FFD700',
+                            padding: 12,
+                            borderRadius: 8,
+                            alignItems: 'center',
+                          }}
+                          onPress={() => setIsRatingMode(true)}
+                        >
+                          <Text style={{ color: '#2c3e91', fontWeight: 'bold', fontSize: 16 }}>
+                            RATE THIS ORDER
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    ) : (
+                      // Rating form
+                      <View>
+                        <Text style={transactionStyles.transactionModalSectionTitle}>
+                          {orderRating ? 'Edit Your Rating' : 'Rate This Order'}
+                        </Text>
+                        
+                        {/* Stars */}
+                        <View style={{ flexDirection: 'row', marginBottom: 15, justifyContent: 'center' }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <TouchableOpacity key={star} onPress={() => setRatingStars(star)}>
+                              <Icon
+                                name="star"
+                                size={35}
+                                color={star <= ratingStars ? "#FFCC00" : "gray"}
+                                style={{ marginHorizontal: 4 }}
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+
+                        {/* Feedback input */}
+                        <TextInput
+                          style={{
+                            borderWidth: 1,
+                            borderColor: '#ddd',
+                            borderRadius: 8,
+                            padding: 10,
+                            minHeight: 80,
+                            maxHeight: 120,
+                            textAlignVertical: 'top',
+                            marginBottom: 12,
+                            backgroundColor: '#fff',
+                          }}
+                          placeholder="Leave your feedback..."
+                          placeholderTextColor="#999"
+                          multiline
+                          value={ratingFeedback}
+                          onChangeText={setRatingFeedback}
+                          numberOfLines={4}
+                          returnKeyType="done"
+                          blurOnSubmit={true}
+                          onFocus={() => {
+                            // Scroll to bottom when keyboard opens
+                            setTimeout(() => {
+                              modalScrollRef.current?.scrollToEnd({ animated: true });
+                            }, 300);
+                          }}
+                        />
+
+                        {/* Buttons */}
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#ccc',
+                              padding: 12,
+                              borderRadius: 8,
+                              alignItems: 'center',
+                            }}
+                            onPress={() => {
+                              setIsRatingMode(false);
+                              if (orderRating) {
+                                setRatingStars(orderRating.stars);
+                                setRatingFeedback(orderRating.feedback || '');
+                              } else {
+                                setRatingStars(0);
+                                setRatingFeedback('');
+                              }
+                            }}
+                            disabled={isSubmittingRating}
+                          >
+                            <Text style={{ color: '#333', fontWeight: 'bold' }}>
+                              Cancel
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#FFD700',
+                              padding: 12,
+                              borderRadius: 8,
+                              alignItems: 'center',
+                            }}
+                            onPress={orderRating ? updateRating : submitRating}
+                            disabled={isSubmittingRating}
+                          >
+                            <Text style={{ color: '#2c3e91', fontWeight: 'bold' }}>
+                              {isSubmittingRating ? 'Submitting...' : (orderRating ? 'Update' : 'Submit')}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                </ScrollView>
+              )}
+              
+              {/* Close button - inside white container, top right */}
+              <TouchableOpacity
+                style={{ 
+                  position: 'absolute', 
+                  top: 10, 
+                  right: 10, 
+                  backgroundColor: 'rgba(44, 62, 145, 0.8)', 
+                  borderRadius: 20, 
+                  width: 36, 
+                  height: 36, 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  zIndex: 10
+                }}
+                onPress={() => {
+                  setModalVisible(false);
+                  setIsRatingMode(false);
+                  Keyboard.dismiss();
+                }}
+              >
+                <Ionicons name="close" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>

@@ -16,6 +16,7 @@ Run the migrations in this order:
 1. `20250104_add_avatar_url_to_profiles.sql` - Adds avatar_url column to existing profiles table
 2. `20250104_setup_profiles_rls.sql` - Sets up RLS policies for profiles table
 3. `20250104_create_avatars_storage.sql` - Creates the storage bucket and RLS policies
+4. `20250104_create_ratings_table.sql` - Creates ratings table with RLS policies
 
 ### Option 2: Using Supabase CLI (Recommended for Production)
 
