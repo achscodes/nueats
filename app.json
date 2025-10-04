@@ -4,16 +4,17 @@
     "slug": "NuEats",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/NuEatsLogo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "nueats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/NuEatsLogo.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2c3e91"
       },
       "edgeToEdgeEnabled": true,
@@ -39,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/NuEatsLogo.png",
+          "image": "./assets/images/adaptive-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#2c3e91"
         }
@@ -47,8 +48,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow NUeats to save receipts to your photo library.",
-          "savePhotosPermission": "Allow NUeats to save receipts to your photo library."
+          "photosPermission": "Allow NuEats to save receipts to your photo library.",
+          "savePhotosPermission": "Allow NuEats to save receipts to your photo library."
         }
       ],
       "expo-web-browser"
