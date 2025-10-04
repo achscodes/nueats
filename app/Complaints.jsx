@@ -13,10 +13,12 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { SETTINGS_COLORS } from "./src/Setting.js";
 import { userComplaintsHelpers } from "./demodata/complaintsDemoData.js";
 import complaintsStyles from "./src/Complaints.js";
+import { useAuth } from "./context/AuthContext";
 
 export default function Complaints() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user: authUser, isGuest } = useAuth();
 
   // State management
   const [complaints, setComplaints] = useState([]);
@@ -57,10 +59,10 @@ export default function Complaints() {
 
   const loadComplaints = () => {
     try {
-      if (params.userId) {
-        const userComplaints = userComplaintsHelpers.getUserComplaints(
-          params.userId
-        );
+      // Use authenticated user ID first, then fall back to params
+      const userId = authUser?.id || params.userId;
+      if (userId) {
+        const userComplaints = userComplaintsHelpers.getUserComplaints(userId);
         setComplaints(userComplaints);
       } else {
         Alert.alert("Error", "User ID not found");

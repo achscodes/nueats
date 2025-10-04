@@ -18,6 +18,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import profileStyles from "./src/Profile.js"; // Make sure path is correct
 import { userProfileManager, demoHelpers } from "./demodata/profileDemoData.js"; // Make sure path is correct
+import { useAuth } from "./context/AuthContext"; // Import auth context
+import { supabase } from "../lib/supabase"; // Import supabase client
 
 export default function ProfileScreen() {
   // State for password visibility toggles
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user: authUser, isGuest, updateUser: updateAuthUser } = useAuth(); // Get auth state
 
   // State for user data
   const [user, setUser] = useState(null);
@@ -75,13 +78,29 @@ export default function ProfileScreen() {
   // Load user data on component mount
   useEffect(() => {
     loadUserData();
-  }, [params.userId]);
+  }, [params.userId, authUser]);
 
   const loadUserData = () => {
     setLoading(true);
     try {
-      if (params.userId) {
-        // Load user data using the userId from params
+      // Priority 1: Use Supabase authenticated user
+      if (authUser && !isGuest) {
+        const userData = {
+          id: authUser.id,
+          name: authUser.user_metadata?.display_name || params.userName || authUser.email?.split('@')[0] || 'User',
+          email: authUser.email || params.userEmail || '',
+          phone: authUser.user_metadata?.phone || params.userPhone || '',
+          profileImage: authUser.user_metadata?.profile_image || null,
+          preferences: authUser.user_metadata?.preferences || { notifications: true },
+        };
+
+        setUser(userData);
+        setName(userData.name);
+        setPhone(userData.phone);
+        setEmail(userData.email);
+        setProfileImage(userData.profileImage);
+      } else if (params.userId) {
+        // Priority 2: Try to load from demo data (backward compatibility)
         const userData = demoHelpers.getUserById(params.userId);
         if (userData) {
           // Add any missing properties with defaults
@@ -99,7 +118,24 @@ export default function ProfileScreen() {
           setEmail(completeUserData.email || "");
           setProfileImage(completeUserData.profileImage || null);
         } else {
-          showMessage("User not found", "error");
+          // Priority 3: Construct from params if demo data not found
+          if (params.userName || params.userEmail) {
+            const userData = {
+              id: params.userId,
+              name: params.userName || 'User',
+              email: params.userEmail || '',
+              phone: params.userPhone || '',
+              profileImage: null,
+              preferences: { notifications: true },
+            };
+            setUser(userData);
+            setName(userData.name);
+            setPhone(userData.phone);
+            setEmail(userData.email);
+            setProfileImage(userData.profileImage);
+          } else {
+            showMessage("User not found", "error");
+          }
         }
       } else {
         // Fallback to current user if no userId provided
@@ -202,24 +238,97 @@ export default function ProfileScreen() {
     setShowImagePickerModal(true);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!user) return;
 
-    const updates = {
-      name: name.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      profileImage: profileImage,
-    };
+    try {
+      // Validate inputs
+      const trimmedName = name.trim();
+      const trimmedPhone = phone.trim();
+      const trimmedEmail = email.trim();
 
-    const result = userProfileManager.updateUserProfile(user.id, updates);
+      if (!trimmedName || !trimmedEmail) {
+        showMessage("Name and email are required", "error");
+        return;
+      }
 
-    if (result.success) {
-      setUser(result.user);
-      setIsEditingProfile(false);
-      showMessage(result.message, "success");
-    } else {
-      showMessage(result.message, "error");
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        showMessage("Please enter a valid email address", "error");
+        return;
+      }
+
+      // Check if user is authenticated with Supabase
+      if (authUser && !isGuest) {
+        // Update Supabase user
+        const updateData = {
+          data: {
+            display_name: trimmedName,
+            phone: trimmedPhone,
+            profile_image: profileImage,
+          },
+        };
+
+        // If email changed, include it in the update
+        if (trimmedEmail !== authUser.email) {
+          updateData.email = trimmedEmail;
+        }
+
+        const { data, error } = await supabase.auth.updateUser(updateData);
+
+        if (error) {
+          console.error("Supabase update error:", error);
+          showMessage(error.message || "Failed to update profile", "error");
+          return;
+        }
+
+        // Update local user state
+        const updatedUser = {
+          ...user,
+          name: trimmedName,
+          phone: trimmedPhone,
+          email: trimmedEmail,
+          profileImage: profileImage,
+        };
+
+        setUser(updatedUser);
+        
+        // Update AuthContext to reflect changes across the app
+        if (data.user) {
+          updateAuthUser(data.user);
+        }
+        
+        setIsEditingProfile(false);
+        
+        // Show appropriate message based on email change
+        if (trimmedEmail !== authUser.email) {
+          showMessage("Profile updated! Please check your new email to confirm the change.", "success");
+        } else {
+          showMessage("Profile updated successfully!", "success");
+        }
+      } else {
+        // Fallback to demo data manager for non-authenticated users
+        const updates = {
+          name: trimmedName,
+          phone: trimmedPhone,
+          email: trimmedEmail,
+          profileImage: profileImage,
+        };
+
+        const result = userProfileManager.updateUserProfile(user.id, updates);
+
+        if (result.success) {
+          setUser(result.user);
+          setIsEditingProfile(false);
+          showMessage(result.message, "success");
+        } else {
+          showMessage(result.message, "error");
+        }
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      showMessage("An unexpected error occurred. Please try again.", "error");
     }
   };
 
@@ -234,7 +343,7 @@ export default function ProfileScreen() {
     setIsEditingProfile(false);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       showMessage("New passwords do not match", "error");
       return;
@@ -242,20 +351,53 @@ export default function ProfileScreen() {
 
     if (!user) return;
 
-    const result = userProfileManager.changePassword(
-      user.id,
-      currentPassword,
-      newPassword
-    );
+    // Validate password length
+    if (newPassword.length < 6) {
+      showMessage("Password must be at least 6 characters long", "error");
+      return;
+    }
 
-    if (result.success) {
-      setShowPasswordModal(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      showMessage(result.message, "success");
-    } else {
-      showMessage(result.message, "error");
+    try {
+      // Check if user is authenticated with Supabase
+      if (authUser && !isGuest) {
+        // Update password in Supabase
+        const { data, error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) {
+          console.error("Password update error:", error);
+          showMessage(error.message || "Failed to update password", "error");
+          return;
+        }
+
+        // Success
+        setShowPasswordModal(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        showMessage("Password updated successfully!", "success");
+      } else {
+        // Fallback to demo data manager for non-authenticated users
+        const result = userProfileManager.changePassword(
+          user.id,
+          currentPassword,
+          newPassword
+        );
+
+        if (result.success) {
+          setShowPasswordModal(false);
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+          showMessage(result.message, "success");
+        } else {
+          showMessage(result.message, "error");
+        }
+      }
+    } catch (error) {
+      console.error("Error changing password:", error);
+      showMessage("An unexpected error occurred. Please try again.", "error");
     }
   };
 
