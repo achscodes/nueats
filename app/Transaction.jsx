@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,15 @@ import {
   Platform,
   UIManager,
   Animated,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import transactionStyles from "./src/Transaction.js";
 import { Ionicons } from "@expo/vector-icons";
-import demoTransactionData from "./demodata/transactionDemoData.js";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 // Enable LayoutAnimation on Android
 if (
@@ -26,8 +30,10 @@ if (
 
 const Transactions = () => {
   const router = useRouter();
-  const demoOrders = demoTransactionData;
+  const { user, isGuest } = useAuth();
 
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -53,18 +59,91 @@ const Transactions = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
 
+  // Fetch orders from database
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchOrders = async () => {
+        try {
+          setIsLoading(true);
+          
+          if (!user?.id || isGuest) {
+            setOrders([]);
+            setIsLoading(false);
+            return;
+          }
+
+          // Fetch orders with order items
+          const { data: ordersData, error: ordersError } = await supabase
+            .from("orders")
+            .select(`
+              order_id,
+              total_amount,
+              payment_method,
+              status,
+              created_at,
+              order_items (
+                quantity,
+                price,
+                menu_items:product_id (
+                  id,
+                  name,
+                  image
+                )
+              )
+            `)
+            .eq("user_id", user.id)
+            .in("status", ["Pending", "Preparing", "Ready", "Completed", "Cancelled"])
+            .order("created_at", { ascending: false });
+
+          if (ordersError) throw ordersError;
+
+          // Transform data to match expected format
+          const transformedOrders = (ordersData || []).map((order) => ({
+            id: order.order_id,
+            orderNumber: `NU-2025-${order.order_id.toString().slice(-6)}`,
+            date: new Date(order.created_at).toLocaleDateString(),
+            dateTime: order.created_at,
+            total: order.total_amount,
+            status: order.status,
+            paymentMethod: order.payment_method,
+            items: (order.order_items || []).map((item) => ({
+              name: item.menu_items?.name || "Unknown Item",
+              quantity: item.quantity,
+              price: Number(item.price),
+              image: item.menu_items?.image || "",
+            })),
+          }));
+
+          setOrders(transformedOrders);
+        } catch (error) {
+          console.error("Error fetching orders:", error);
+          setOrders([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchOrders();
+    }, [user?.id, isGuest])
+  );
+
   // Unique values for dropdowns
   const uniqueStatuses = [
     "All",
-    ...Array.from(new Set(demoOrders.map((o) => o.status))),
+    "Pending",
+    "Preparing",
+    "Ready",
+    "Completed",
+    "Cancelled",
   ];
   const uniquePayments = [
     "All",
-    ...Array.from(new Set(demoOrders.map((o) => o.paymentMethod))),
+    "Cash",
+    "Paymongo",
   ];
 
   // Filtering and sorting logic
-  let filteredOrders = [...demoOrders];
+  let filteredOrders = [...orders];
   if (statusFilter !== "All") {
     filteredOrders = filteredOrders.filter(
       (order) => order.status === statusFilter
@@ -77,9 +156,9 @@ const Transactions = () => {
   }
   filteredOrders = filteredOrders.sort((a, b) => {
     if (sortOrder === "Newest to Oldest") {
-      return new Date(b.date) - new Date(a.date);
+      return new Date(b.dateTime) - new Date(a.dateTime);
     }
-    return new Date(a.date) - new Date(b.date);
+    return new Date(a.dateTime) - new Date(b.dateTime);
   });
 
   return (
@@ -326,42 +405,63 @@ const Transactions = () => {
       {/* History Title */}
       <Text style={transactionStyles.transactionHistoryTitle}>History</Text>
 
-      {/* Orders List */}
-      <FlatList
-        data={filteredOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={transactionStyles.transactionOrdersList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={transactionStyles.transactionOrderCard}
-            onPress={() => setSelectedOrder(item) || setModalVisible(true)}
-          >
-            <View style={transactionStyles.transactionOrderHeaderRow}>
-              <Text style={transactionStyles.transactionOrderNumber}>
-                {item.orderNumber}
+      {/* Loading State */}
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 50 }}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={{ color: "#666", marginTop: 10 }}>Loading transactions...</Text>
+        </View>
+      ) : isGuest ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 50 }}>
+          <Ionicons name="receipt-outline" size={60} color="#ccc" />
+          <Text style={{ color: "#666", marginTop: 10, fontSize: 16 }}>Please log in to view transactions</Text>
+        </View>
+      ) : filteredOrders.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 50 }}>
+          <Ionicons name="receipt-outline" size={60} color="#ccc" />
+          <Text style={{ color: "#666", marginTop: 10, fontSize: 16 }}>No transactions found</Text>
+        </View>
+      ) : (
+        /* Orders List */
+        <FlatList
+          data={filteredOrders}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={transactionStyles.transactionOrdersList}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={transactionStyles.transactionOrderCard}
+              onPress={() => setSelectedOrder(item) || setModalVisible(true)}
+            >
+              <View style={transactionStyles.transactionOrderHeaderRow}>
+                <Text style={transactionStyles.transactionOrderNumber}>
+                  {item.orderNumber}
+                </Text>
+                <Text style={transactionStyles.transactionOrderStatus}>
+                  {item.status}
+                </Text>
+              </View>
+              <Text style={transactionStyles.transactionOrderDate}>
+                {item.date}
               </Text>
-              <Text style={transactionStyles.transactionOrderStatus}>
-                {item.status}
+              <View style={transactionStyles.transactionOrderItemsRow}>
+                {item.items.slice(0, 5).map((food, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: food.image }}
+                    style={transactionStyles.transactionOrderFoodImage}
+                  />
+                ))}
+                {item.items.length > 5 && (
+                  <Text style={{ color: "#666", marginLeft: 5 }}>+{item.items.length - 5} more</Text>
+                )}
+              </View>
+              <Text style={transactionStyles.transactionOrderTotal}>
+                Total: ₱{parseFloat(item.total).toFixed(2)}
               </Text>
-            </View>
-            <Text style={transactionStyles.transactionOrderDate}>
-              {item.date} • {item.time}
-            </Text>
-            <View style={transactionStyles.transactionOrderItemsRow}>
-              {item.items.map((food, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri: food.image }}
-                  style={transactionStyles.transactionOrderFoodImage}
-                />
-              ))}
-            </View>
-            <Text style={transactionStyles.transactionOrderTotal}>
-              Total: ₱{item.total}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
       {/* Modal for Order Details */}
       <Modal
@@ -381,47 +481,47 @@ const Transactions = () => {
                   {selectedOrder.status}
                 </Text>
                 <Text style={transactionStyles.transactionModalOrderDate}>
-                  {selectedOrder.date} • {selectedOrder.time}
+                  {selectedOrder.date}
                 </Text>
                 <Text style={transactionStyles.transactionModalSectionTitle}>
                   Items
                 </Text>
-                {selectedOrder.items.map((food, idx) => (
-                  <View
-                    key={idx}
-                    style={transactionStyles.transactionModalFoodRow}
-                  >
-                    <Image
-                      source={{ uri: food.image }}
-                      style={transactionStyles.transactionModalFoodImage}
-                    />
-                    <View style={transactionStyles.transactionModalFoodDetails}>
-                      <Text style={transactionStyles.transactionModalFoodName}>
-                        {food.name}
-                      </Text>
-                      <Text style={transactionStyles.transactionModalFoodQty}>
-                        Qty: {food.quantity}
+                <ScrollView 
+                  style={{ maxHeight: 200 }}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                >
+                  {selectedOrder.items.map((food, idx) => (
+                    <View
+                      key={idx}
+                      style={transactionStyles.transactionModalFoodRow}
+                    >
+                      <Image
+                        source={{ uri: food.image }}
+                        style={transactionStyles.transactionModalFoodImage}
+                      />
+                      <View style={transactionStyles.transactionModalFoodDetails}>
+                        <Text style={transactionStyles.transactionModalFoodName}>
+                          {food.name}
+                        </Text>
+                        <Text style={transactionStyles.transactionModalFoodQty}>
+                          Qty: {food.quantity}
+                        </Text>
+                      </View>
+                      <Text style={transactionStyles.transactionModalFoodPrice}>
+                        ₱{parseFloat(food.price).toFixed(2)}
                       </Text>
                     </View>
-                    <Text style={transactionStyles.transactionModalFoodPrice}>
-                      ₱{food.price}
-                    </Text>
-                  </View>
-                ))}
+                  ))}
+                </ScrollView>
                 <Text style={transactionStyles.transactionModalSectionTitle}>
-                  Delivery Address
-                </Text>
-                <Text style={transactionStyles.transactionModalAddress}>
-                  {selectedOrder.deliveryAddress}
-                </Text>
-                <Text style={transactionStyles.transactionModalSectionTitle}>
-                  Payment
+                  Payment Method
                 </Text>
                 <Text style={transactionStyles.transactionModalPayment}>
                   {selectedOrder.paymentMethod}
                 </Text>
                 <Text style={transactionStyles.transactionModalTotal}>
-                  Total: ₱{selectedOrder.total}
+                  Total: ₱{parseFloat(selectedOrder.total).toFixed(2)}
                 </Text>
                 <TouchableOpacity
                   style={transactionStyles.transactionCloseModalBtn}
