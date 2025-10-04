@@ -78,19 +78,26 @@ export default function ProfileScreen() {
   // Load user data on component mount
   useEffect(() => {
     loadUserData();
-  }, [params.userId, authUser]);
+  }, [params.userId, authUser?.id]);
 
-  const loadUserData = () => {
+  const loadUserData = async () => {
     setLoading(true);
     try {
       // Priority 1: Use Supabase authenticated user
       if (authUser && !isGuest) {
+        // Fetch profile data from profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('avatar_url, display_name')
+          .eq('id', authUser.id)
+          .single();
+
         const userData = {
           id: authUser.id,
-          name: authUser.user_metadata?.display_name || params.userName || authUser.email?.split('@')[0] || 'User',
+          name: profileData?.display_name || authUser.user_metadata?.display_name || params.userName || authUser.email?.split('@')[0] || 'User',
           email: authUser.email || params.userEmail || '',
           phone: authUser.user_metadata?.phone || params.userPhone || '',
-          profileImage: authUser.user_metadata?.profile_image || null,
+          profileImage: profileData?.avatar_url || authUser.user_metadata?.profile_image || null,
           preferences: authUser.user_metadata?.preferences || { notifications: true },
         };
 
@@ -183,6 +190,58 @@ export default function ProfileScreen() {
     return true;
   };
 
+  // Upload image to Supabase Storage
+  const uploadImageToSupabase = async (imageUri) => {
+    try {
+      if (!authUser || isGuest) {
+        throw new Error("User not authenticated");
+      }
+
+      // Get file extension from URI
+      const ext = imageUri.split('.').pop().toLowerCase();
+      const fileName = `${authUser.id}/avatar_${Date.now()}.${ext}`;
+
+      // Read the file as blob
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+
+      // Convert blob to ArrayBuffer
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(blob);
+      });
+
+      // Delete old avatar if exists
+      if (profileImage) {
+        const oldFileName = profileImage.split('/').pop();
+        const oldPath = `${authUser.id}/${oldFileName}`;
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, arrayBuffer, {
+          contentType: `image/${ext}`,
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
   // Handle camera capture
   const handleCameraCapture = async () => {
     const hasPermissions = await requestPermissions();
@@ -198,9 +257,32 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        setProfileImage(imageUri);
-        setShowImagePickerModal(false);
-        showMessage("Profile picture updated successfully!", "success");
+        
+        // Upload to Supabase if authenticated
+        if (authUser && !isGuest) {
+          showMessage("Uploading image...", "success");
+          const publicUrl = await uploadImageToSupabase(imageUri);
+          
+          // Save to profiles table
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({
+              id: authUser.id,
+              avatar_url: publicUrl,
+              display_name: name,
+            });
+
+          if (error) throw error;
+
+          setProfileImage(publicUrl);
+          setShowImagePickerModal(false);
+          showMessage("Profile picture updated successfully!", "success");
+        } else {
+          // Fallback for non-authenticated users
+          setProfileImage(imageUri);
+          setShowImagePickerModal(false);
+          showMessage("Profile picture updated successfully!", "success");
+        }
       }
     } catch (error) {
       console.error("Camera error:", error);
@@ -223,9 +305,32 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        setProfileImage(imageUri);
-        setShowImagePickerModal(false);
-        showMessage("Profile picture updated successfully!", "success");
+        
+        // Upload to Supabase if authenticated
+        if (authUser && !isGuest) {
+          showMessage("Uploading image...", "success");
+          const publicUrl = await uploadImageToSupabase(imageUri);
+          
+          // Save to profiles table
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({
+              id: authUser.id,
+              avatar_url: publicUrl,
+              display_name: name,
+            });
+
+          if (error) throw error;
+
+          setProfileImage(publicUrl);
+          setShowImagePickerModal(false);
+          showMessage("Profile picture updated successfully!", "success");
+        } else {
+          // Fallback for non-authenticated users
+          setProfileImage(imageUri);
+          setShowImagePickerModal(false);
+          showMessage("Profile picture updated successfully!", "success");
+        }
       }
     } catch (error) {
       console.error("Photo library error:", error);
@@ -281,6 +386,20 @@ export default function ProfileScreen() {
           console.error("Supabase update error:", error);
           showMessage(error.message || "Failed to update profile", "error");
           return;
+        }
+
+        // Also update or insert into profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authUser.id,
+            display_name: trimmedName,
+            avatar_url: profileImage,
+          });
+
+        if (profileError) {
+          console.error("Profile table update error:", profileError);
+          showMessage("Profile updated but some data may not be saved", "error");
         }
 
         // Update local user state

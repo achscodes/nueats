@@ -53,6 +53,7 @@ export default function Menu() {
 
   const { isGuest, getUserFirstName, getUserInitials, user, logout } = useAuth(); // Get auth state
   const [activeOrder, setActiveOrder] = useState(null); // latest active order from DB
+  const [profileAvatar, setProfileAvatar] = useState(null); // User's profile picture from DB
 
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
@@ -120,6 +121,37 @@ export default function Menu() {
         }
       };
       fetchActiveOrder();
+    }, [user?.id, isGuest])
+  );
+
+  // Fetch user profile avatar - refresh on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchProfileAvatar = async () => {
+        try {
+          if (!user?.id || isGuest) {
+            setProfileAvatar(null);
+            return;
+          }
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("avatar_url")
+            .eq("id", user.id)
+            .single();
+          
+          if (error) {
+            console.error("Failed to load profile avatar", error);
+            setProfileAvatar(null);
+            return;
+          }
+          
+          setProfileAvatar(data?.avatar_url || null);
+        } catch (e) {
+          console.error("Failed to load profile avatar", e);
+          setProfileAvatar(null);
+        }
+      };
+      fetchProfileAvatar();
     }, [user?.id, isGuest])
   );
 
@@ -624,22 +656,37 @@ export default function Menu() {
             style={styles.menuLogo}
           />
           <View style={styles.menuHeaderRight}>
-            <View style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: "#FFD700",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 8,
-            }}>
-              <Text style={{
-                color: "#2c3e91",
-                fontWeight: "bold",
+            {profileAvatar ? (
+              <Image
+                source={{ uri: profileAvatar }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  marginRight: 8,
+                  backgroundColor: "#FFD700",
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: "#FFD700",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 8,
               }}>
-                {isGuest ? "G" : getUserInitials()}
-              </Text>
-            </View>
+                <Text style={{
+                  color: "#2c3e91",
+                  fontWeight: "bold",
+                  fontSize: 12,
+                }}>
+                  {isGuest ? "G" : getUserInitials()}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               onPress={handleSettingsPress}
               style={styles.menuSettingsWrapper}
