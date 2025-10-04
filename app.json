@@ -50,7 +50,8 @@
           "photosPermission": "Allow NUeats to save receipts to your photo library.",
           "savePhotosPermission": "Allow NUeats to save receipts to your photo library."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
