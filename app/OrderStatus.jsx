@@ -9,20 +9,28 @@ import {
   Modal,
   Alert,
   Animated,
+  RefreshControl,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/FontAwesome";
 import orderStatusStyles, { ORDER_STATUS_COLORS } from "./src/OrderStatus.js";
 import { getItemById } from "./demodata/menuDemoData.js";
 import { OrderContext } from "./context/OrderContext";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 const { width } = Dimensions.get("window");
 
 export default function OrderStatus() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { createOrder, getTimeRemaining, getEstimatedReadyTime } =
+  const { createOrder, getTimeRemaining, getEstimatedReadyTime, clearOrder } =
     useContext(OrderContext);
+  const { user } = useAuth();
 
   const {
     id = "1",
@@ -97,10 +105,180 @@ export default function OrderStatus() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
-  const [currentOrderNumber, setCurrentOrderNumber] = useState(orderNumber); // ✅ Store order number in state
+  const [currentOrderNumber, setCurrentOrderNumber] = useState(orderNumber || (id ? `NU-2025-${id}` : null)); // ✅ Use NU-2025-{order_id} fallback
+  const [refreshing, setRefreshing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("pending");
+  
+  // Rating state
+  const [orderRating, setOrderRating] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingStars, setRatingStars] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   // Animation for sliding to bottom
   const slideAnim = new Animated.Value(0);
+
+  // Function to fetch latest order status from database
+  const fetchOrderStatus = async () => {
+    try {
+      if (!user?.id || !id) return;
+
+      // Fetch order status
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('status, updated_at')
+        .eq('order_id', Number(id))
+        .eq('user_id', user.id)
+        .single();
+
+      if (orderError) {
+        console.error('Error fetching order status:', orderError);
+        return;
+      }
+
+      if (orderData) {
+        // Map database status to app status
+        const dbStatusMap = {
+          'Pending': 'pending',
+          'Preparing': 'preparing',
+          'Ready': 'ready',
+          'Completed': 'received',
+          'Cancelled': 'cancelled'
+        };
+        
+        const newStatus = dbStatusMap[orderData.status] || orderData.status.toLowerCase();
+        setOrderStatus(newStatus);
+      }
+
+      // Fetch payment status
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .select('status, provider_intent_id, provider_reference')
+        .eq('order_id', Number(id))
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!paymentError && paymentData) {
+        setPaymentStatus(paymentData.status);
+      }
+    } catch (error) {
+      console.error('Error in fetchOrderStatus:', error);
+    }
+  };
+
+  // Fetch rating for this order
+  const fetchOrderRating = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ratings')
+        .select('rating_id, stars, feedback, created_at')
+        .eq('order_id', Number(id))
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+      
+      setOrderRating(data || null);
+      
+      if (data) {
+        setRatingStars(data.stars);
+        setRatingFeedback(data.feedback || '');
+      }
+    } catch (error) {
+      console.error('Error fetching rating:', error);
+      setOrderRating(null);
+    }
+  };
+
+  // Check if rating is editable (within 30 days)
+  const isRatingEditable = (createdAt) => {
+    if (!createdAt) return false;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return new Date(createdAt) > thirtyDaysAgo;
+  };
+
+  // Submit rating
+  const submitRating = async () => {
+    if (ratingStars === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+
+    if (ratingFeedback.trim() === '') {
+      Alert.alert('Feedback Required', 'Please provide your feedback.');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const { error } = await supabase
+        .from('ratings')
+        .insert({
+          order_id: Number(id),
+          stars: ratingStars,
+          feedback: ratingFeedback.trim(),
+        });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Thank you for your rating!');
+      setShowRatingModal(false);
+      await fetchOrderRating();
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Error', error.message || 'Failed to submit rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  // Update rating
+  const updateRating = async () => {
+    if (ratingStars === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+
+    if (ratingFeedback.trim() === '') {
+      Alert.alert('Feedback Required', 'Please provide your feedback.');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const { error } = await supabase
+        .from('ratings')
+        .update({
+          stars: ratingStars,
+          feedback: ratingFeedback.trim(),
+        })
+        .eq('rating_id', orderRating.rating_id);
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Rating updated successfully!');
+      setShowRatingModal(false);
+      await fetchOrderRating();
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      Alert.alert('Error', error.message || 'Failed to update rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  // Pull to refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrderStatus();
+    if (orderStatus === 'received') {
+      await fetchOrderRating();
+    }
+    setRefreshing(false);
+  };
 
   // Initialize order in context and set up countdown
   useEffect(() => {
@@ -122,7 +300,26 @@ export default function OrderStatus() {
     if (!currentOrderNumber && finalOrder.orderNumber) {
       setCurrentOrderNumber(finalOrder.orderNumber);
     }
+
+    // Fetch initial order status from database
+    fetchOrderStatus();
   }, []);
+
+  // Auto-refresh order status every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrderStatus();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [id, user]);
+
+  // Fetch rating when order status is received/completed
+  useEffect(() => {
+    if (orderStatus === 'received' && user?.id && id) {
+      fetchOrderRating();
+    }
+  }, [orderStatus, user, id]);
 
   // Update countdown using context method
   useEffect(() => {
@@ -226,24 +423,6 @@ export default function OrderStatus() {
     );
   };
 
-  // Test button handlers
-  const handleMakePreparing = () => {
-    setOrderStatus("preparing");
-  };
-
-  const handleMakeReady = () => {
-    setOrderStatus("ready");
-    setRemaining(0);
-  };
-
-  const handleMakeCancelled = () => {
-    setOrderStatus("cancelled");
-  };
-
-  const handleMarkReceived = () => {
-    setOrderStatus("received");
-  };
-
   // Cancel order handlers
   const handleCancelOrder = () => {
     if (canCancelOrder()) {
@@ -261,7 +440,7 @@ export default function OrderStatus() {
     setShowReasonModal(true);
   };
 
-  const submitCancellation = () => {
+  const submitCancellation = async () => {
     if (!selectedReason) {
       Alert.alert(
         "Please select a reason",
@@ -270,12 +449,74 @@ export default function OrderStatus() {
       return;
     }
 
-    setOrderStatus("cancelled");
-    setShowReasonModal(false);
-    Alert.alert(
-      "Order Cancelled",
-      "Your order has been cancelled successfully."
-    );
+    try {
+      if (!user?.id) throw new Error("Not authenticated");
+
+      // 1) Update order to Cancelled for this user (guard by user_id via RLS)
+      const { error: orderErr } = await supabase
+        .from("orders")
+        .update({ status: "Cancelled" })
+        .eq("order_id", Number(id));
+      if (orderErr) throw orderErr;
+
+      // 2) Update related payment to cancelled
+      const { data: paymentRow, error: fetchPayErr } = await supabase
+        .from("payments")
+        .select("payment_id, status")
+        .eq("order_id", Number(id))
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (fetchPayErr) throw fetchPayErr;
+
+      if (paymentRow?.payment_id) {
+        const { error: payErr } = await supabase
+          .from("payments")
+          .update({ status: "cancelled" })
+          .eq("payment_id", paymentRow.payment_id);
+        if (payErr) throw payErr;
+
+        // 3) Log payment event (client-side insert allowed by RLS)
+        await supabase.from("payment_events").insert({
+          payment_id: paymentRow.payment_id,
+          provider: null,
+          event_type: "client.cancelled",
+          event_payload: { reason: selectedReason },
+        });
+      }
+
+      // 4) Insert cancellation reason into order_cancellations table
+      const { error: cancelErr } = await supabase
+        .from("order_cancellations")
+        .insert({
+          order_id: Number(id),
+          user_id: user.id,
+          reason: selectedReason,
+        });
+      if (cancelErr) {
+        console.error("Failed to log cancellation reason:", cancelErr);
+        // Don't throw - cancellation already processed
+      }
+
+      setOrderStatus("cancelled");
+      setShowReasonModal(false);
+      
+      // Clear order from context so it doesn't show in Menu
+      clearOrder();
+      
+      Alert.alert(
+        "Order Cancelled",
+        "Your order has been cancelled successfully.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/Menu"),
+          },
+        ]
+      );
+    } catch (e) {
+      console.error("Cancellation failed", e);
+      Alert.alert("Error", "Failed to cancel order. Please try again.");
+    }
   };
 
   const cancelReasons = [
@@ -468,65 +709,6 @@ export default function OrderStatus() {
     );
   };
 
-  // Render test buttons (only in development)
-  const renderTestButtons = () => {
-    const isDevelopment = __DEV__ || true; // Always show for testing
-
-    if (!isDevelopment) return null;
-
-    return (
-      <View style={orderStatusStyles.testButtonsContainer}>
-        <Text style={orderStatusStyles.testButtonsTitle}>
-          Test Controls (Dev Only)
-        </Text>
-        <View style={orderStatusStyles.testButtonsRow}>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.primary },
-            ]}
-            onPress={handleMakePreparing}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Make Preparing</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.orange },
-            ]}
-            onPress={handleMakeReady}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Make Ready</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={orderStatusStyles.testButtonsRow}>
-          <TouchableOpacity
-            style={[
-              orderStatusStyles.testButton,
-              { backgroundColor: ORDER_STATUS_COLORS.danger },
-            ]}
-            onPress={handleMakeCancelled}
-          >
-            <Text style={orderStatusStyles.testButtonText}>Cancel Order</Text>
-          </TouchableOpacity>
-          {orderStatus === "ready" && (
-            <TouchableOpacity
-              style={[
-                orderStatusStyles.testButton,
-                { backgroundColor: ORDER_STATUS_COLORS.green },
-              ]}
-              onPress={handleMarkReceived}
-            >
-              <Text style={orderStatusStyles.testButtonText}>
-                Mark Received
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
-
   // Render cancel confirmation modal
   const renderCancelModal = () => (
     <Modal
@@ -666,7 +848,19 @@ export default function OrderStatus() {
         <View style={orderStatusStyles.orderStatusSide} />
       </View>
 
-      <ScrollView contentContainerStyle={{ alignItems: "center" }}>
+      <ScrollView 
+        contentContainerStyle={{ alignItems: "center" }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[ORDER_STATUS_COLORS.accent]}
+            tintColor={ORDER_STATUS_COLORS.accent}
+            title="Pull to refresh order status"
+            titleColor={ORDER_STATUS_COLORS.accent}
+          />
+        }
+      >
         <View style={orderStatusStyles.orderStatusCard}>
           {/* Order Number Display */}
           <Text style={orderStatusStyles.orderNumberText}>
@@ -736,6 +930,17 @@ export default function OrderStatus() {
             <Text style={orderStatusStyles.orderStatusPaymentText}>
               Payment Method: {payment}
             </Text>
+            <Text style={[
+              orderStatusStyles.orderStatusPaymentText,
+              { fontSize: 12, marginTop: 2, color: 
+                paymentStatus === 'paid' ? ORDER_STATUS_COLORS.success :
+                paymentStatus === 'failed' ? ORDER_STATUS_COLORS.danger :
+                paymentStatus === 'processing' ? ORDER_STATUS_COLORS.orange :
+                ORDER_STATUS_COLORS.grey
+              }
+            ]}>
+              Payment Status: {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+            </Text>
             <Text style={orderStatusStyles.orderStatusTotalText}>
               Total: ₱{parseFloat(total).toFixed(2)}
             </Text>
@@ -761,38 +966,180 @@ export default function OrderStatus() {
             </TouchableOpacity>
           )}
 
-          {/* Rate Order Button (only when received) */}
+          {/* Rating Section (only when received) */}
           {orderStatus === "received" && (
-            <TouchableOpacity
-              style={orderStatusStyles.orderStatusRateBtn}
-              onPress={() =>
-                router.push({
-                  pathname: "/Feedback",
-                  params: {
-                    orderNumber: currentOrderNumber,
-                    orderId: id,
-                    orderItems: encodeURIComponent(JSON.stringify(orderItems)),
-                    orderTotal: total,
-                    paymentMethod: payment,
-                    orderTime: time,
-                  },
-                })
-              }
-            >
-              <Text style={orderStatusStyles.orderStatusRateText}>
-                RATE ORDER
-              </Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#eee' }}>
+              {!orderRating ? (
+                // Show rating button if no rating exists
+                <TouchableOpacity
+                  style={orderStatusStyles.orderStatusRateBtn}
+                  onPress={() => {
+                    setRatingStars(0);
+                    setRatingFeedback('');
+                    setShowRatingModal(true);
+                  }}
+                >
+                  <Text style={orderStatusStyles.orderStatusRateText}>
+                    RATE ORDER
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                // Show existing rating
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#2c3e91', marginBottom: 8 }}>
+                    Your Rating
+                  </Text>
+                  <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Icon
+                        key={star}
+                        name="star"
+                        size={24}
+                        color={star <= orderRating.stars ? '#FFD700' : '#ccc'}
+                        style={{ marginRight: 4 }}
+                      />
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+                    {orderRating.feedback}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+                    Rated on {new Date(orderRating.created_at).toLocaleDateString()}
+                  </Text>
+                  {isRatingEditable(orderRating.created_at) && (
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: '#2c3e91',
+                        padding: 10,
+                        borderRadius: 5,
+                        alignItems: 'center',
+                      }}
+                      onPress={() => {
+                        setRatingStars(orderRating.stars);
+                        setRatingFeedback(orderRating.feedback || '');
+                        setShowRatingModal(true);
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        Edit Rating
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
           )}
-
-          {/* Test Buttons */}
-          {renderTestButtons()}
         </View>
       </ScrollView>
 
       {/* Modals */}
       {renderCancelModal()}
       {renderReasonModal()}
+      
+      {/* Rating Modal */}
+      <Modal
+        visible={showRatingModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRatingModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}>
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 15,
+              padding: 20,
+              width: '100%',
+              maxWidth: 400,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 15,
+              }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#2c3e91' }}>
+                  {orderRating ? 'Edit Rating' : 'Rate Order'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowRatingModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Stars */}
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+                    How would you rate your order?
+                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity
+                        key={star}
+                        onPress={() => setRatingStars(star)}
+                        style={{ padding: 5 }}
+                      >
+                        <Icon
+                          name="star"
+                          size={40}
+                          color={star <= ratingStars ? '#FFD700' : '#ccc'}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Feedback */}
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+                    Tell us about your experience
+                  </Text>
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#ddd',
+                      borderRadius: 8,
+                      padding: 10,
+                      minHeight: 100,
+                      textAlignVertical: 'top',
+                    }}
+                    placeholder="Share your feedback..."
+                    placeholderTextColor="#999"
+                    multiline
+                    value={ratingFeedback}
+                    onChangeText={setRatingFeedback}
+                  />
+                </View>
+
+                {/* Submit Button */}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: isSubmittingRating ? '#ccc' : '#2c3e91',
+                    padding: 15,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                  onPress={orderRating ? updateRating : submitRating}
+                  disabled={isSubmittingRating}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                    {isSubmittingRating ? 'Submitting...' : (orderRating ? 'Update Rating' : 'Submit Rating')}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Animated.View>
   );
 }

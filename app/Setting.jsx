@@ -19,12 +19,21 @@ export default function Settings() {
   // Load user data on component mount
   useEffect(() => {
     loadUserData();
-  }, [params.userId]);
+  }, [params.userId, user]);
 
   const loadUserData = () => {
     try {
-      if (params.userId) {
-        // Load user data using the userId from params
+      // If we have a Supabase user from AuthContext, use that
+      if (user && !isGuest) {
+        const userData = {
+          id: user.id,
+          name: user.user_metadata?.display_name || params.userName || user.email?.split('@')[0] || 'User',
+          email: user.email || params.userEmail || '',
+          preferences: {},
+        };
+        setCurrentUser(userData);
+      } else if (params.userId) {
+        // Fallback: try to load from demo data (for backward compatibility)
         const userData = demoHelpers.getUserById(params.userId);
         if (userData) {
           // Add preferences if not exists
@@ -34,7 +43,17 @@ export default function Settings() {
           };
           setCurrentUser(userWithPreferences);
         } else {
-          showMessage("User not found", "error");
+          // If not found in demo data but we have params, construct from params
+          if (params.userName || params.userEmail) {
+            setCurrentUser({
+              id: params.userId,
+              name: params.userName || 'User',
+              email: params.userEmail || '',
+              preferences: {},
+            });
+          } else {
+            showMessage("User not found", "error");
+          }
         }
       } else {
         showMessage("No user ID provided", "error");

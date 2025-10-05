@@ -16,17 +16,10 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderContext } from "./context/OrderContext";
-import { useAuth } from "./context/AuthContext"; // Import auth context
-// Import React Icons equivalent - using Ionicons from Expo
+import { useAuth } from "./context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-// Import styles and demo data
 import styles from "./src/Menu.js";
-import {
-  getMenuItems,
-  getCategories,
-  getFeaturedItems,
-  MENU_ITEMS,
-} from "./demodata/menuDemoData.js";
+import { supabase } from "../lib/supabase";
 import { demoHelpers } from "./demodata/profileDemoData.js";
 
 const { height, width } = Dimensions.get("window");
@@ -52,16 +45,16 @@ export default function Menu() {
   // Animation for coming from OrderStatus
   const [slideUpAnim] = useState(new Animated.Value(0));
 
-  // Use the updated OrderContext
   const { currentOrder, getTimeRemaining, storeOrderFromStatus, clearOrder } =
     useContext(OrderContext);
 
-  const { isGuest, getUserFirstName, user, logout } = useAuth(); // Get auth state
+  const { isGuest, getUserFirstName, getUserInitials, user, logout } = useAuth(); // Get auth state
+  const [activeOrder, setActiveOrder] = useState(null); // latest active order from DB
+  const [profileAvatar, setProfileAvatar] = useState(null); // User's profile picture from DB
 
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
     React.useCallback(() => {
-      // Check if coming from OrderStatus page
       if (params.fromOrderStatus === "true") {
         // Restore order from params if not already in context
         if (params.orderId && !currentOrder) {
@@ -98,6 +91,64 @@ export default function Menu() {
         });
       }
     }, [params.fromOrderStatus])
+  );
+
+  // Fetch latest active order (Pending/Preparing/Ready) for user - refresh on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchActiveOrder = async () => {
+        try {
+          if (!user?.id || isGuest) {
+            setActiveOrder(null);
+            return;
+          }
+          const { data, error } = await supabase
+            .from("orders")
+            .select("order_id, status, total_amount, payment_method, created_at")
+            .eq("user_id", user.id)
+            .in("status", ["Pending", "Preparing", "Ready"]) // treat these as active
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (error) throw error;
+          setActiveOrder((data && data.length > 0) ? data[0] : null);
+        } catch (e) {
+          console.error("Failed to load active order", e);
+          setActiveOrder(null);
+        }
+      };
+      fetchActiveOrder();
+    }, [user?.id, isGuest])
+  );
+
+  // Fetch user profile avatar - refresh on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchProfileAvatar = async () => {
+        try {
+          if (!user?.id || isGuest) {
+            setProfileAvatar(null);
+            return;
+          }
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("avatar_url")
+            .eq("id", user.id)
+            .single();
+          
+          if (error) {
+            console.error("Failed to load profile avatar", error);
+            setProfileAvatar(null);
+            return;
+          }
+          
+          setProfileAvatar(data?.avatar_url || null);
+        } catch (e) {
+          console.error("Failed to load profile avatar", e);
+          setProfileAvatar(null);
+        }
+      };
+      fetchProfileAvatar();
+    }, [user?.id, isGuest])
   );
 
   // Fetch user data on component mount
@@ -145,20 +196,49 @@ export default function Menu() {
     }
   }, [params.userId, isGuest]);
 
-  // Simulate database fetch on component mount
+  // Fetch from Supabase
   useEffect(() => {
     const loadMenuData = async () => {
       setIsLoading(true);
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       try {
-        const categoriesData = getCategories();
-        const itemsData = getMenuItems(selectedCategory, searchText);
+        // Build base query
+        let query = supabase
+          .from("menu_items")
+          .select("id,name,description,price,category,image,prep_time,is_available")
+          .eq("is_available", true)
+          .order("name", { ascending: true });
 
-        setCategories(categoriesData);
-        setMenuItems(itemsData);
+        // Apply category filter (server-side) if not 'all'
+        if (selectedCategory && selectedCategory !== "all") {
+          query = query.eq("category", selectedCategory);
+        }
+
+        // Apply search filter on name or description
+        if (searchText && searchText.trim().length > 0) {
+          const term = `%${searchText.trim()}%`;
+          query = query.or(`name.ilike.${term},description.ilike.${term}`);
+        }
+
+        const { data: items, error } = await query;
+        if (error) throw error;
+
+        setMenuItems(items || []);
+
+        // Build categories dynamically from DB (from available items)
+        const { data: allItems, error: allErr } = await supabase
+          .from("menu_items")
+          .select("category")
+          .eq("is_available", true);
+        if (allErr) throw allErr;
+
+        const unique = Array.from(
+          new Set((allItems || []).map((r) => r.category).filter(Boolean))
+        );
+        const dynamicCategories = [
+          { id: "all", slug: "all", name: "All" },
+          ...unique.map((cat) => ({ id: cat, slug: cat, name: cat })),
+        ];
+        setCategories(dynamicCategories);
 
         // Fade in animation
         Animated.timing(fadeAnim, {
@@ -174,12 +254,6 @@ export default function Menu() {
     };
 
     loadMenuData();
-  }, [selectedCategory, searchText]);
-
-  // Filter items based on category and search
-  useEffect(() => {
-    const filteredItems = getMenuItems(selectedCategory, searchText);
-    setMenuItems(filteredItems);
   }, [selectedCategory, searchText]);
 
   // Get time left using the updated context method
@@ -201,6 +275,7 @@ export default function Menu() {
         price: item.price.toString(),
         image: item.image,
         category: item.category,
+        prep_time: item.prep_time?.toString?.() || "",
         isGuest: isGuest.toString(),
         userId: currentUser?.id || user?.id || "",
       },
@@ -268,28 +343,52 @@ export default function Menu() {
     }
   };
 
-  // Handle OrderStatus button press - UPDATED to preserve order number
-  const handleOrderStatusPress = () => {
-    if (!currentOrder) return;
+  // Handle OrderStatus button press - Navigate to most recent active order
+  const handleOrderStatusPress = async () => {
+    try {
+      if (!activeOrder) return;
 
-    router.push({
-      pathname: "/OrderStatus",
-      params: {
-        id: currentOrder.id,
-        time: currentOrder.time,
-        status: currentOrder.status,
-        items: encodeURIComponent(JSON.stringify(currentOrder.items)),
-        total: currentOrder.total.toString(),
-        payment: currentOrder.payment,
-        orderNumber: currentOrder.orderNumber, // IMPORTANT: Pass the existing order number
-      },
-    });
+      // Fetch full order details including items
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('product_id, quantity, price, menu_items:product_id(id,name,image)')
+        .eq('order_id', activeOrder.order_id);
+
+      if (itemsError) throw itemsError;
+
+      // Transform items to match expected format
+      const items = (orderItems || []).map(item => ({
+        id: item.product_id,
+        name: item.menu_items?.name || '',
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+        image: item.menu_items?.image || '',
+      }));
+
+      const orderNumber = `NU-2025-${activeOrder.order_id.toString().slice(-6)}`;
+
+      router.push({
+        pathname: "/OrderStatus",
+        params: {
+          id: activeOrder.order_id.toString(),
+          time: activeOrder.created_at,
+          status: activeOrder.status.toLowerCase(),
+          items: encodeURIComponent(JSON.stringify(items)),
+          total: activeOrder.total_amount.toString(),
+          payment: activeOrder.payment_method,
+          orderNumber: orderNumber,
+        },
+      });
+    } catch (error) {
+      console.error('Error loading order details:', error);
+      Alert.alert('Error', 'Failed to load order details.');
+    }
   };
 
   // Get display name
   const getDisplayName = () => {
     if (isGuest) return "Guest";
-    if (currentUser) return currentUser.name.split(" ")[0]; // First name only
+    if (currentUser?.name) return currentUser.name.split(" ")[0]; // First name only
     return getUserFirstName();
   };
 
@@ -363,7 +462,10 @@ export default function Menu() {
           <Text style={styles.menuFoodDesc} numberOfLines={2}>
             {item.description}
           </Text>
-          <Text style={styles.menuFoodCategory}>{item.category}</Text>
+          <Text style={styles.menuFoodCategory}>
+            {item.category}
+            {item.prep_time ? ` • ${item.prep_time} min` : ""}
+          </Text>
         </View>
         <View style={styles.menuFoodPrice}>
           <Text style={styles.menuFoodPriceText}>
@@ -550,7 +652,37 @@ export default function Menu() {
             style={styles.menuLogo}
           />
           <View style={styles.menuHeaderRight}>
-            <Text style={styles.menuGuestText}>{getDisplayName()}</Text>
+            {profileAvatar ? (
+              <Image
+                source={{ uri: profileAvatar }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  marginRight: 8,
+                  backgroundColor: "#FFD700",
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: "#FFD700",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 8,
+              }}>
+                <Text style={{
+                  color: "#2c3e91",
+                  fontWeight: "bold",
+                  fontSize: 12,
+                }}>
+                  {isGuest ? "G" : getUserInitials()}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               onPress={handleSettingsPress}
               style={styles.menuSettingsWrapper}
@@ -566,7 +698,7 @@ export default function Menu() {
 
         {/* Welcome */}
         <Text style={styles.menuWelcome}>
-          Welcome{!isGuest ? `, ${getDisplayName()}` : ""}!
+          Welcome, {getDisplayName()}!
         </Text>
         <Text style={styles.menuSubText}>Let's order your Food!</Text>
 
@@ -670,23 +802,15 @@ export default function Menu() {
           <Ionicons name="cart-outline" size={24} color="#ffffff" />
         </TouchableOpacity>
 
-        {/* Order Status Button - Updated with live countdown */}
-        {currentOrder && (
+        {/* Order Status Button - show only if an active order exists from database */}
+        {activeOrder && (
           <TouchableOpacity
             style={styles.menuStatusButton}
             onPress={handleOrderStatusPress}
             activeOpacity={0.9}
           >
             <Text style={styles.menuStatusBtnText}>
-              {timeLeft !== null && timeLeft > 0
-                ? `Check Order Status (${Math.ceil(timeLeft / 60)} min left)`
-                : currentOrder.status === "ready"
-                ? "Order Ready - Check Status"
-                : currentOrder.status === "received"
-                ? "Order Completed"
-                : currentOrder.status === "cancelled"
-                ? "Order Cancelled"
-                : "Check Order Status"}
+              Check Order Status ({activeOrder.status})
             </Text>
           </TouchableOpacity>
         )}
