@@ -16,10 +16,8 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OrderContext } from "./context/OrderContext";
-import { useAuth } from "./context/AuthContext"; // Import auth context
-// Import React Icons equivalent - using Ionicons from Expo
+import { useAuth } from "./context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-// Import styles and demo data
 import styles from "./src/Menu.js";
 import { supabase } from "../lib/supabase";
 import { demoHelpers } from "./demodata/profileDemoData.js";
@@ -47,7 +45,6 @@ export default function Menu() {
   // Animation for coming from OrderStatus
   const [slideUpAnim] = useState(new Animated.Value(0));
 
-  // Use the updated OrderContext
   const { currentOrder, getTimeRemaining, storeOrderFromStatus, clearOrder } =
     useContext(OrderContext);
 
@@ -58,7 +55,6 @@ export default function Menu() {
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
     React.useCallback(() => {
-      // Check if coming from OrderStatus page
       if (params.fromOrderStatus === "true") {
         // Restore order from params if not already in context
         if (params.orderId && !currentOrder) {

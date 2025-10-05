@@ -74,7 +74,6 @@ export default function Checkout() {
     return maxPrepTime + queueTime;
   };
 
-  // Helper function to map payment method to database format
   const mapPaymentMethod = (method) => {
     // PayMongo handles both GCash and PayMaya, store as Paymongo in DB
     return method.toLowerCase() === 'cash' ? 'Cash' : 'Paymongo';
@@ -227,7 +226,6 @@ export default function Checkout() {
     }
   };
 
-  // Updated handleOrder function
   const handleOrder = async () => {
     if (cartItems.length === 0) {
       Alert.alert("Empty Cart", "Please add items to your cart.");
@@ -245,14 +243,14 @@ export default function Checkout() {
         // For cash payments, save directly to database
         await placeLocalOrder();
       } else if (selectedPayment.toLowerCase() === "paymongo") {
-        // Step 1: Save order to database first
+        // Save order to database first
         const order = await saveOrderToDatabase();
         
         if (!order) {
-          return; // Error already shown in saveOrderToDatabase
+          return;
         }
 
-        // Step 2: Invoke payment function after order is saved
+        // Invoke payment function after order is saved
         const { data, error } = await supabase.functions.invoke("payment", {
           body: {
             amount: totalAmount,
@@ -269,10 +267,10 @@ export default function Checkout() {
 
         const redirectUrl = data?.redirect_url;
         if (redirectUrl) {
-          // Step 3: Clear cart first
+          // Clear cart first
           clearCart();
           
-          // Step 4: Navigate to order status
+          // Navigate to order status
           router.replace({
             pathname: "/OrderStatus",
             params: {
@@ -286,7 +284,7 @@ export default function Checkout() {
             },
           });
           
-          // Step 5: Open PayMongo URL last (after navigation)
+          // Open PayMongo URL
           setTimeout(() => {
             Linking.openURL(redirectUrl);
           }, 500);

@@ -111,7 +111,9 @@ export const AuthProvider = ({ children }) => {
   // Request password reset email
   const resetPassword = async (email) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'nueats://auth/recovery',
+      });
       if (error) {
         return { success: false, message: error.message };
       }
