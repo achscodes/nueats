@@ -8,8 +8,8 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SETTINGS_COLORS } from "./src/Setting.js";
@@ -65,6 +65,21 @@ export default function Complaints() {
     applyFilters();
     calculateStats();
   }, [complaints, selectedStatus, selectedCategory]);
+
+  // Debug: Log modal state changes
+  useEffect(() => {
+    console.log('Status Picker visible:', showStatusPicker);
+  }, [showStatusPicker]);
+
+  useEffect(() => {
+    console.log('Category Picker visible:', showCategoryPicker);
+  }, [showCategoryPicker]);
+
+  // Debug: Log options on mount
+  useEffect(() => {
+    console.log('Status Options:', statusOptions);
+    console.log('Category Options:', categoryOptions);
+  }, []);
 
   const loadComplaints = async () => {
     if (!authUser || isGuest) {
@@ -288,40 +303,68 @@ export default function Complaints() {
     onValueChange,
     isVisible,
     onClose
-  ) => (
-    <Modal visible={isVisible} transparent animationType="slide">
-      <View style={complaintsStyles.complaintsModalOverlay}>
-        <View style={complaintsStyles.complaintsPickerContainer}>
-          <View style={complaintsStyles.complaintsPickerHeader}>
-            <Text style={complaintsStyles.complaintsPickerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons
-                name="close"
-                size={24}
-                color={SETTINGS_COLORS.primary}
-              />
-            </TouchableOpacity>
+  ) => {
+    console.log(`Rendering ${title} modal. Visible: ${isVisible}, Options count: ${options.length}`);
+    
+    return (
+      <Modal 
+        visible={isVisible} 
+        transparent={true} 
+        animationType="slide" 
+        onRequestClose={onClose}
+      >
+        <View style={complaintsStyles.complaintsModalOverlay}>
+          <View style={complaintsStyles.complaintsPickerContainer}>
+            <View style={complaintsStyles.complaintsPickerHeader}>
+              <Text style={complaintsStyles.complaintsPickerTitle}>{title}</Text>
+              <TouchableOpacity onPress={() => {
+                console.log(`Closing ${title} via X button`);
+                onClose();
+              }}>
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={SETTINGS_COLORS.primary}
+                />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={{ maxHeight: 300 }}>
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#eee',
+                    backgroundColor: selectedValue === option.value ? '#f0f0f0' : '#fff',
+                  }}
+                  onPress={() => {
+                    console.log(`${title} value changed to:`, option.value);
+                    onValueChange(option.value);
+                    onClose();
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      color: SETTINGS_COLORS.text,
+                      fontWeight: selectedValue === option.value ? 'bold' : 'normal'
+                    }}>
+                      {option.label}
+                    </Text>
+                    {selectedValue === option.value && (
+                      <Ionicons name="checkmark" size={20} color={SETTINGS_COLORS.primary} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-          <Picker
-            selectedValue={selectedValue}
-            onValueChange={(itemValue) => {
-              onValueChange(itemValue);
-              onClose();
-            }}
-            style={complaintsStyles.complaintsPicker}
-          >
-            {options.map((option) => (
-              <Picker.Item
-                key={option.value}
-                label={option.label}
-                value={option.value}
-              />
-            ))}
-          </Picker>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   // Show loading state
   if (isLoading) {
@@ -452,11 +495,14 @@ export default function Complaints() {
       <View style={complaintsStyles.complaintsFiltersContainer}>
         <TouchableOpacity
           style={complaintsStyles.complaintsFilterButton}
-          onPress={() => setShowStatusPicker(true)}
+          onPress={() => {
+            console.log('Opening status picker...');
+            setShowStatusPicker(true);
+          }}
         >
           <Text style={complaintsStyles.complaintsFilterButtonText}>
             Status:{" "}
-            {statusOptions.find((opt) => opt.value === selectedStatus)?.label}
+            {statusOptions.find((opt) => opt.value === selectedStatus)?.label || "All"}
           </Text>
           <Ionicons
             name="chevron-down"
@@ -467,7 +513,10 @@ export default function Complaints() {
 
         <TouchableOpacity
           style={complaintsStyles.complaintsFilterButton}
-          onPress={() => setShowCategoryPicker(true)}
+          onPress={() => {
+            console.log('Opening category picker...');
+            setShowCategoryPicker(true);
+          }}
         >
           <Text
             style={complaintsStyles.complaintsFilterButtonText}
@@ -475,7 +524,7 @@ export default function Complaints() {
           >
             {
               categoryOptions.find((opt) => opt.value === selectedCategory)
-                ?.label
+                ?.label || "All Categories"
             }
           </Text>
           <Ionicons
