@@ -6,14 +6,17 @@ import {
   FlatList,
   Alert,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SETTINGS_COLORS } from "./src/Setting.js";
 import { userComplaintsHelpers } from "./demodata/complaintsDemoData.js";
 import complaintsStyles from "./src/Complaints.js";
 import { useAuth } from "./context/AuthContext";
+import { supabase } from "../lib/supabase";
 
 export default function Complaints() {
   const router = useRouter();
@@ -28,6 +31,9 @@ export default function Complaints() {
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [expandedComplaint, setExpandedComplaint] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [stats, setStats] = useState({ total: 0, open: 0, resolved: 0, pending: 0 });
 
   // Filter options
   const statusOptions = [
@@ -39,47 +45,91 @@ export default function Complaints() {
 
   const categoryOptions = [
     { label: "All Categories", value: "all" },
-    { label: "Food Quality", value: "Food Quality" },
-    { label: "Service", value: "Service" },
-    { label: "App Issue", value: "App Issue" },
-    { label: "Billing", value: "Billing" },
-    { label: "Pickup Delay", value: "Pickup Delay" },
-    { label: "Other", value: "Other" },
+    { label: "Food Quality", value: "food quality" },
+    { label: "Service", value: "service" },
+    { label: "App Issue", value: "app issue" },
+    { label: "Billing", value: "billing" },
+    { label: "Pickup Delay", value: "pickup delay" },
+    { label: "Other", value: "other" },
   ];
 
-  // Load complaints on component mount
-  useEffect(() => {
-    loadComplaints();
-  }, [params.userId]);
+  // Load complaints when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadComplaints();
+    }, [authUser])
+  );
 
   // Apply filters when complaints or filter values change
   useEffect(() => {
     applyFilters();
+    calculateStats();
   }, [complaints, selectedStatus, selectedCategory]);
 
-  const loadComplaints = () => {
+  const loadComplaints = async () => {
+    if (!authUser || isGuest) {
+      setIsLoading(false);
+      setComplaints([]);
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      // Use authenticated user ID first, then fall back to params
-      const userId = authUser?.id || params.userId;
-      if (userId) {
-        const userComplaints = userComplaintsHelpers.getUserComplaints(userId);
-        setComplaints(userComplaints);
-      } else {
-        Alert.alert("Error", "User ID not found");
-      }
+      const { data, error } = await supabase
+        .from('complaints')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform data to match existing component structure
+      const transformedComplaints = data.map(complaint => ({
+        complaint_id: complaint.complaint_id.toString(),
+        title: complaint.title,
+        category: complaint.category,
+        description: complaint.description,
+        status: complaint.status.toLowerCase(),
+        created_date: complaint.created_at,
+        resolved_date: complaint.resolved_at,
+      }));
+
+      setComplaints(transformedComplaints);
     } catch (error) {
       console.error("Error loading complaints:", error);
       Alert.alert("Error", "Failed to load complaints");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await loadComplaints();
+    setIsRefreshing(false);
+  };
+
+  const calculateStats = () => {
+    const total = complaints.length;
+    const open = complaints.filter(c => c.status === 'open').length;
+    const resolved = complaints.filter(c => c.status === 'resolved').length;
+    const pending = complaints.filter(c => c.status === 'pending').length;
+    setStats({ total, open, resolved, pending });
+  };
+
   const applyFilters = () => {
-    let filtered = complaints;
-    filtered = userComplaintsHelpers.filterByStatus(filtered, selectedStatus);
-    filtered = userComplaintsHelpers.filterByCategory(
-      filtered,
-      selectedCategory
-    );
+    let filtered = [...complaints];
+    
+    // Filter by status
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(c => c.status === selectedStatus);
+    }
+    
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(c => c.category === selectedCategory);
+    }
+    
     setFilteredComplaints(filtered);
   };
 
@@ -129,7 +179,11 @@ export default function Complaints() {
                   {item.status.toUpperCase()}
                 </Text>
                 <Text style={complaintsStyles.complaintCardDate}>
-                  {userComplaintsHelpers.formatDate(item.created_date)}
+                  {new Date(item.created_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </Text>
               </View>
             </View>
@@ -146,7 +200,7 @@ export default function Complaints() {
           <View style={complaintsStyles.complaintDetailsContainer}>
             <Text style={complaintsStyles.complaintDetailLabel}>Category:</Text>
             <Text style={complaintsStyles.complaintDetailText}>
-              {item.category}
+              {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
             </Text>
 
             <Text style={complaintsStyles.complaintDetailLabel}>
@@ -269,8 +323,71 @@ export default function Complaints() {
     </Modal>
   );
 
-  // Get stats for display
-  const stats = userComplaintsHelpers.getComplaintStats(params.userId);
+  // Show loading state
+  if (isLoading) {
+    return (
+      <View style={complaintsStyles.complaintsContainer}>
+        {/* Header */}
+        <View style={complaintsStyles.complaintsHeader}>
+          <View style={complaintsStyles.complaintsHeaderContent}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={SETTINGS_COLORS.accent}
+              />
+            </TouchableOpacity>
+            <Text style={complaintsStyles.complaintsTitle}>My Complaints</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={SETTINGS_COLORS.primary} />
+          <Text style={{ marginTop: 10, color: SETTINGS_COLORS.gray }}>
+            Loading complaints...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show guest message
+  if (!authUser || isGuest) {
+    return (
+      <View style={complaintsStyles.complaintsContainer}>
+        {/* Header */}
+        <View style={complaintsStyles.complaintsHeader}>
+          <View style={complaintsStyles.complaintsHeaderContent}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={SETTINGS_COLORS.accent}
+              />
+            </TouchableOpacity>
+            <Text style={complaintsStyles.complaintsTitle}>My Complaints</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Ionicons name="lock-closed-outline" size={60} color="#ccc" />
+          <Text style={{ marginTop: 10, fontSize: 16, color: SETTINGS_COLORS.gray, textAlign: 'center' }}>
+            Please log in to view your complaints
+          </Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 20,
+              backgroundColor: SETTINGS_COLORS.primary,
+              paddingHorizontal: 30,
+              paddingVertical: 12,
+              borderRadius: 8,
+            }}
+            onPress={() => router.push('/Login')}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={complaintsStyles.complaintsContainer}>
@@ -396,6 +513,13 @@ export default function Complaints() {
           keyExtractor={(item) => item.complaint_id}
           style={complaintsStyles.complaintsListContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              colors={[SETTINGS_COLORS.primary]}
+            />
+          }
         />
       )}
 

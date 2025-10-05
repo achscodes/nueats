@@ -9,14 +9,18 @@ import {
   Linking,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import helpSupportStyles, { HELP_COLORS } from "./src/HelpSupport.js";
 import { helpSupportDemoData } from "./demodata/helpDemoData.js";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 export default function HelpSupport() {
   const router = useRouter();
+  const { user: authUser, isGuest } = useAuth();
   const { storeInfo, contactMethods, faqData } = helpSupportDemoData;
 
   // Modal state
@@ -25,6 +29,7 @@ export default function HelpSupport() {
   const [issueTitle, setIssueTitle] = useState("");
   const [issueDetails, setIssueDetails] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Issue categories
   const issueCategories = [
@@ -63,7 +68,7 @@ export default function HelpSupport() {
     setShowCategoryDropdown(false);
   };
 
-  const handleSendReport = () => {
+  const handleSendReport = async () => {
     if (!selectedCategory || !issueTitle.trim() || !issueDetails.trim()) {
       Alert.alert(
         "Incomplete Information",
@@ -72,16 +77,66 @@ export default function HelpSupport() {
       return;
     }
 
-    Alert.alert(
-      "Report Sent Successfully!",
-      `Thank you for reporting this ${selectedCategory} issue. We'll contact you during business hours.`,
-      [
-        {
-          text: "OK",
-          onPress: () => handleCloseModal(),
-        },
-      ]
-    );
+    // Check if user is authenticated
+    if (!authUser || isGuest) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to report an issue.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Login",
+            onPress: () => {
+              handleCloseModal();
+              router.push("/Login");
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Convert category to lowercase for database
+      const categoryLowercase = selectedCategory.toLowerCase();
+
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert({
+          user_id: authUser.id,
+          category: categoryLowercase,
+          title: issueTitle.trim(),
+          description: issueDetails.trim(),
+          status: 'Pending',
+        })
+        .select('complaint_id')
+        .single();
+
+      if (error) throw error;
+
+      Alert.alert(
+        "Report Sent Successfully!",
+        `Thank you for reporting this ${selectedCategory} issue. We'll contact you during business hours.\n\nComplaint ID: #${data.complaint_id}`,
+        [
+          {
+            text: "OK",
+            onPress: () => handleCloseModal(),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to submit your report. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -357,7 +412,8 @@ export default function HelpSupport() {
                   helpSupportStyles.sendReportButton,
                   !selectedCategory ||
                   !issueTitle.trim() ||
-                  !issueDetails.trim()
+                  !issueDetails.trim() ||
+                  isSubmitting
                     ? helpSupportStyles.sendReportButtonDisabled
                     : helpSupportStyles.sendReportButtonActive,
                 ]}
@@ -365,12 +421,17 @@ export default function HelpSupport() {
                 disabled={
                   !selectedCategory ||
                   !issueTitle.trim() ||
-                  !issueDetails.trim()
+                  !issueDetails.trim() ||
+                  isSubmitting
                 }
               >
-                <Text style={helpSupportStyles.sendReportButtonText}>
-                  Send Report
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={helpSupportStyles.sendReportButtonText}>
+                    Send Report
+                  </Text>
+                )}
               </TouchableOpacity>
 
               {/* Bottom spacing */}

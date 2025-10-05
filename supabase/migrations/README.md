@@ -17,6 +17,7 @@ Run the migrations in this order:
 2. `20250104_setup_profiles_rls.sql` - Sets up RLS policies for profiles table
 3. `20250104_create_avatars_storage.sql` - Creates the storage bucket and RLS policies
 4. `20250104_create_ratings_table.sql` - Creates ratings table with RLS policies
+5. `20250105_create_complaints_table.sql` - Creates complaints table with RLS policies
 
 ### Option 2: Using Supabase CLI (Recommended for Production)
 
@@ -51,6 +52,28 @@ Run the migrations in this order:
 - Sets up RLS policies:
   - Users can upload/update/delete their own avatars
   - Anyone can view avatars (public bucket)
+
+### 20250104_create_ratings_table.sql
+- Creates a `ratings` table for order ratings
+- Fields: rating_id, order_id, stars (1-5), feedback, created_at, updated_at
+- Enforces one rating per order (UNIQUE constraint)
+- Sets up RLS policies:
+  - Users can view their own ratings
+  - Users can rate completed orders once
+  - Users can update ratings within 30 days
+  - Admins can view/update/delete all ratings
+
+### 20250105_create_complaints_table.sql
+- Creates a `complaints` table for user complaints
+- Fields: complaint_id, user_id, category, title, description, status, created_at, resolved_at, updated_at
+- Categories: food quality, service, app issue, billing, pickup delay, other
+- Status: Pending (default), Open, or Resolved
+- Automatically sets resolved_at timestamp when status changes to Resolved
+- Sets up RLS policies:
+  - Users can view/create/update their own complaints
+  - Users can only update Pending or Open complaints
+  - Users cannot delete complaints
+  - Admins can view/update/delete all complaints
 
 ## Storage Structure
 
