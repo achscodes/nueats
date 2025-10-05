@@ -134,14 +134,12 @@ export default function PaymentScreen({ route, navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Payment</Text>
 
-      {/* Order Summary */}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Order Summary</Text>
         <Text style={styles.orderId}>Order ID: {orderId}</Text>
         <Text style={styles.totalAmount}>Total: ₱{amount.toFixed(2)}</Text>
       </View>
 
-      {/* Payment Status */}
       {isPolling && (
         <View style={styles.pollingCard}>
           <ActivityIndicator size="large" color="#0284c7" />
@@ -150,18 +148,15 @@ export default function PaymentScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Error Display */}
       {error && (
         <View style={styles.errorCard}>
           <Text style={styles.errorText}>Error: {error}</Text>
         </View>
       )}
 
-      {/* Payment Methods */}
       <View style={styles.paymentMethodsSection}>
         <Text style={styles.sectionTitle}>Select Payment Method</Text>
 
-        {/* Cash Payment */}
         <TouchableOpacity
           style={[styles.paymentButton, styles.cashButton]}
           onPress={() => handlePayment('cash')}
@@ -175,7 +170,6 @@ export default function PaymentScreen({ route, navigation }) {
           </View>
         </TouchableOpacity>
 
-        {/* Online Payment */}
         <TouchableOpacity
           style={[styles.paymentButton, styles.onlineButton]}
           onPress={() => handlePayment('paymongo')}
@@ -194,7 +188,6 @@ export default function PaymentScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Loading Indicator */}
       {isInitiating && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color="#0284c7" />
@@ -202,7 +195,6 @@ export default function PaymentScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Reopen Payment Button */}
       {checkoutUrl && isPolling && (
         <TouchableOpacity
           style={styles.reopenButton}
@@ -213,7 +205,6 @@ export default function PaymentScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* Debug Info */}
       {__DEV__ && paymentSessionId && (
         <View style={styles.debugCard}>
           <Text style={styles.debugTitle}>Debug Info:</Text>

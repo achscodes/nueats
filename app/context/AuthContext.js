@@ -108,6 +108,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Request password reset email
+  const resetPassword = async (email) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) {
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: "Password reset email sent" };
+    } catch (e) {
+      return { success: false, message: "An error occurred while sending reset email" };
+    }
+  };
+
   // Guest login function
   const continueAsGuest = () => {
     setUser(null);
@@ -160,6 +173,7 @@ export const AuthProvider = ({ children }) => {
     signUp,
     logout,
     continueAsGuest,
+    resetPassword,
     getUserFirstName,
     getUserInitials,
     updateUser,

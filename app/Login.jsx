@@ -25,7 +25,7 @@ export default function Login() {
   const [loginError, setLoginError] = useState("");
 
   const router = useRouter();
-  const { login, continueAsGuest, isLoading } = useAuth();
+  const { login, continueAsGuest, isLoading, resetPassword } = useAuth();
 
   const handleLogin = async () => {
     // Clear previous error
@@ -66,6 +66,24 @@ export default function Login() {
   const handleGuestContinue = () => {
     continueAsGuest();
     router.replace("/Menu");
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert("Reset Password", "Enter your email to receive a reset link.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Reset Password", "Please enter a valid email address.");
+      return;
+    }
+    const res = await resetPassword(email);
+    if (res.success) {
+      Alert.alert("Check your email", "We sent a password reset link to your email.");
+    } else {
+      Alert.alert("Reset Failed", res.message || "Unable to send reset email.");
+    }
   };
 
   return (
@@ -164,7 +182,7 @@ export default function Login() {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity disabled={isLoading}>
+                <TouchableOpacity disabled={isLoading} onPress={handleForgotPassword}>
                   <Text style={loginStyles.forgot}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
