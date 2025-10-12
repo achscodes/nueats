@@ -27,6 +27,12 @@ export default function RootLayout() {
               <Stack.Screen name="OrderStatus" />
               {/* ✅ Add Feedback screen */}
               <Stack.Screen name="Feedback" />
+              {/* ✅ Add Receipt screen */}
+              <Stack.Screen name="Receipt" />
+              {/* ✅ Add Transaction screen */}
+              <Stack.Screen name="Transaction" />
+              {/* ✅ Add Complaints screen */}
+              <Stack.Screen name="Complaints" />
               {/* ✅ Add About screen if you want it accessible */}
               <Stack.Screen name="AboutPage" />
               {/* ✅ Add Settings screen since Menu links to it */}

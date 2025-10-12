@@ -992,9 +992,18 @@ export default function OrderStatus() {
                 <TouchableOpacity
                   style={orderStatusStyles.orderStatusRateBtn}
                   onPress={() => {
-                    setRatingStars(0);
-                    setRatingFeedback('');
-                    setShowRatingModal(true);
+                    // Navigate to Feedback screen with order details
+                    router.push({
+                      pathname: "/Feedback",
+                      params: {
+                        orderId: id,
+                        orderNumber: currentOrderNumber || orderNumber,
+                        orderItems: encodeURIComponent(JSON.stringify(orderItems)),
+                        orderTotal: total,
+                        paymentMethod: payment,
+                        orderTime: time,
+                      },
+                    });
                   }}
                 >
                   <Text style={orderStatusStyles.orderStatusRateText}>
