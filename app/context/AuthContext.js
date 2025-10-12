@@ -178,32 +178,109 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  // Sign up with Supabase; store display_name and phone in user_metadata
-  const signUp = async ({ email, password, displayName, phoneNumber }) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { 
-            display_name: displayName,
-            phone: phoneNumber 
-          },
-        },
-      });
-      if (error) {
-        setIsLoading(false);
-        return { success: false, message: error.message };
-      }
-      // Depending on email confirmations, user may need to verify email
-      setIsLoading(false);
-      return { success: true, message: "Account created. Check your email to verify." };
-    } catch (e) {
-      setIsLoading(false);
-      return { success: false, message: "An error occurred during sign up" };
-    }
-  };
+  // Sign up with Supabase; store display_name and phone in user_metadata
+  const signUp = async ({ email, password, displayName, phoneNumber }) => {
+    console.log("=== AUTH CONTEXT SIGNUP STARTED ===");
+    console.log("Signup parameters:", {
+      email: email?.length ? `${email.substring(0, 3)}***@${email.split('@')[1]}` : 'undefined',
+      passwordLength: password?.length || 0,
+      displayName: displayName || 'undefined',
+      phoneNumber: phoneNumber || 'undefined'
+    });
+
+    setIsLoading(true);
+    try {
+      console.log("Calling supabase.auth.signUp...");
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { 
+            display_name: displayName,
+            phone: phoneNumber 
+          },
+        },
+      });
+
+      console.log("Supabase signup response:", {
+        hasData: !!data,
+        hasError: !!error,
+        userId: data?.user?.id,
+        userEmail: data?.user?.email,
+        sessionExists: !!data?.session,
+        errorMessage: error?.message,
+        errorCode: error?.status
+      });
+
+      if (error) {
+        console.error("❌ Supabase signup error:", {
+          message: error.message,
+          status: error.status,
+          statusText: error.statusText,
+          name: error.name
+        });
+        setIsLoading(false);
+        return { success: false, message: error.message };
+      }
+
+      console.log("✅ Supabase signup successful");
+      console.log("User data:", {
+        id: data.user?.id,
+        email: data.user?.email,
+        emailConfirmed: data.user?.email_confirmed_at,
+        createdAt: data.user?.created_at,
+        metadata: data.user?.user_metadata
+      });
+
+      // Create profile in profiles table after successful signup
+      console.log("Creating profile for user:", data.user?.id);
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            display_name: displayName,
+            email: data.user.email,
+            phone: phoneNumber,
+            role: 'customer',
+            is_suspended: false,
+            created_at: new Date().toISOString(),
+            avatar_url: '',
+            security_settings: {
+              "passwordExpiry": "90 days",
+              "sessionTimeout": "30 minutes",
+              "twoFactorEnabled": false,
+              "loginNotifications": true
+            }
+          });
+
+        if (profileError) {
+          console.error("❌ Profile creation failed:", profileError);
+          // Don't fail the signup if profile creation fails, just log it
+          console.warn("Profile creation failed, but user signup was successful");
+        } else {
+          console.log("✅ Profile created successfully");
+        }
+      } catch (profileException) {
+        console.error("❌ Profile creation exception:", profileException);
+        console.warn("Profile creation failed, but user signup was successful");
+      }
+
+      // Depending on email confirmations, user may need to verify email
+      setIsLoading(false);
+      console.log("=== AUTH CONTEXT SIGNUP COMPLETED SUCCESSFULLY ===");
+      return { success: true, message: "Account created. Check your email to verify." };
+    } catch (e) {
+      console.error("❌ Signup exception:", {
+        message: e.message,
+        name: e.name,
+        stack: e.stack
+      });
+      setIsLoading(false);
+      console.log("=== AUTH CONTEXT SIGNUP COMPLETED WITH ERROR ===");
+      return { success: false, message: "An error occurred during sign up" };
+    }
+  };
 
   // Request password reset email
   const resetPassword = async (email) => {
