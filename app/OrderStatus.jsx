@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useContext } from "react";
+import React, { useEffect, useState, useMemo, useContext, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -56,16 +56,15 @@ export default function OrderStatus() {
       if (!Array.isArray(parsed)) return [];
 
       return parsed.map((item) => {
-        // Get full item data from menu
-        const menuItem = getItemById(item.id);
-
+        // Use the item data directly from the order (which comes from database)
+        // The database already contains the correct item information
         return {
           ...item,
           quantity: Number(item.quantity) || 1,
           price: Number(item.price) || 0,
-          prep_time: menuItem ? menuItem.prep_time : 15, // fallback to 15 min if not found
-          name: menuItem ? menuItem.name : item.name,
-          image: menuItem ? menuItem.image : item.image,
+          prep_time: item.prep_time || 15, // Use prep_time from order data
+          name: item.name || 'Unknown Item',
+          image: item.image || 'https://via.placeholder.com/50',
         };
       });
     } catch {
@@ -118,9 +117,14 @@ export default function OrderStatus() {
 
   // Animation for sliding to bottom
   const slideAnim = new Animated.Value(0);
+  
+  // Ref to track if order has been initialized
+  const orderInitialized = useRef(false);
+  // Ref to track if timer has been started for preparing status
+  const timerStarted = useRef(false);
 
   // Function to fetch latest order status from database
-  const fetchOrderStatus = async () => {
+  const fetchOrderStatus = useCallback(async () => {
     try {
       if (!user?.id || !id) return;
 
@@ -130,7 +134,7 @@ export default function OrderStatus() {
         .select('status, updated_at')
         .eq('order_id', Number(id))
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (orderError) {
         console.error('Error fetching order status:', orderError);
@@ -165,19 +169,21 @@ export default function OrderStatus() {
     } catch (error) {
       console.error('Error in fetchOrderStatus:', error);
     }
-  };
+  }, [user?.id, id]);
 
   // Fetch rating for this order
-  const fetchOrderRating = async () => {
+  const fetchOrderRating = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('ratings')
         .select('rating_id, stars, feedback, created_at')
         .eq('order_id', Number(id))
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (error) {
+        console.error('Error fetching rating:', error);
+        setOrderRating(null);
+        return;
       }
       
       setOrderRating(data || null);
@@ -190,7 +196,7 @@ export default function OrderStatus() {
       console.error('Error fetching rating:', error);
       setOrderRating(null);
     }
-  };
+  }, [id]);
 
   // Check if rating is editable (within 30 days)
   const isRatingEditable = (createdAt) => {
@@ -280,8 +286,10 @@ export default function OrderStatus() {
     setRefreshing(false);
   };
 
-  // Initialize order in context and set up countdown
+  // Initialize order in context and set up countdown (only once)
   useEffect(() => {
+    if (orderInitialized.current) return;
+    
     const orderData = {
       id,
       items: orderItems,
@@ -303,7 +311,10 @@ export default function OrderStatus() {
 
     // Fetch initial order status from database
     fetchOrderStatus();
-  }, []);
+    
+    // Mark as initialized
+    orderInitialized.current = true;
+  }, [id, orderItems, total, payment, orderStatus, time, calculateETA, currentOrderNumber]);
 
   // Auto-refresh order status every 10 seconds
   useEffect(() => {
@@ -324,6 +335,22 @@ export default function OrderStatus() {
   // Update countdown using context method
   useEffect(() => {
     if (orderStatus === "preparing") {
+      // Only start timer once when status changes to preparing
+      if (!timerStarted.current) {
+        const orderData = {
+          id,
+          items: orderItems,
+          total: parseFloat(total),
+          payment,
+          status: orderStatus,
+          time,
+          prepTime: calculateETA,
+          orderNumber: currentOrderNumber,
+        };
+        createOrder(orderData);
+        timerStarted.current = true;
+      }
+
       const updateCountdown = () => {
         const timeLeft = getTimeRemaining();
         setRemaining(timeLeft);
@@ -335,25 +362,16 @@ export default function OrderStatus() {
       // Then update every second
       const interval = setInterval(updateCountdown, 1000);
       return () => clearInterval(interval);
+    } else {
+      // Reset timer started flag when not preparing
+      timerStarted.current = false;
+      // If not preparing, show full prep time
+      setRemaining(calculateETA * 60);
     }
-  }, [orderStatus, getTimeRemaining]);
+  }, [orderStatus, getTimeRemaining, calculateETA]);
 
   // Handle back navigation with order state preservation
   const handleBackNavigation = () => {
-    // Update the order in context with current status
-    const orderData = {
-      id,
-      items: orderItems,
-      total: parseFloat(total),
-      payment,
-      status: orderStatus,
-      time,
-      prepTime: calculateETA,
-      orderNumber: currentOrderNumber, // ✅ Use the stored order number
-    };
-
-    createOrder(orderData);
-
     // Animate sliding down before navigation
     Animated.timing(slideAnim, {
       toValue: 1,

@@ -84,15 +84,18 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  // Sign up with Supabase; store display_name in user_metadata
-  const signUp = async ({ email, password, displayName }) => {
+  // Sign up with Supabase; store display_name and phone in user_metadata
+  const signUp = async ({ email, password, displayName, phoneNumber }) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { display_name: displayName },
+          data: { 
+            display_name: displayName,
+            phone: phoneNumber 
+          },
         },
       });
       if (error) {
@@ -115,10 +118,12 @@ export const AuthProvider = ({ children }) => {
         redirectTo: 'nueats://auth/recovery',
       });
       if (error) {
+        console.error('Password reset error:', error);
         return { success: false, message: error.message };
       }
       return { success: true, message: "Password reset email sent" };
     } catch (e) {
+      console.error('Password reset exception:', e);
       return { success: false, message: "An error occurred while sending reset email" };
     }
   };

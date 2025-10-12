@@ -201,7 +201,7 @@ export default function Menu() {
     const loadMenuData = async () => {
       setIsLoading(true);
       try {
-        // Build base query
+        // Build base query - menu items should be visible to everyone (guests and authenticated users)
         let query = supabase
           .from("menu_items")
           .select("id,name,description,price,category,image,prep_time,is_available")
@@ -220,8 +220,12 @@ export default function Menu() {
         }
 
         const { data: items, error } = await query;
-        if (error) throw error;
+        if (error) {
+          console.error("Menu items query error:", error);
+          throw error;
+        }
 
+        console.log("Loaded menu items:", items?.length || 0);
         setMenuItems(items || []);
 
         // Build categories dynamically from DB (from available items)
@@ -229,7 +233,10 @@ export default function Menu() {
           .from("menu_items")
           .select("category")
           .eq("is_available", true);
-        if (allErr) throw allErr;
+        if (allErr) {
+          console.error("Categories query error:", allErr);
+          throw allErr;
+        }
 
         const unique = Array.from(
           new Set((allItems || []).map((r) => r.category).filter(Boolean))
@@ -248,6 +255,9 @@ export default function Menu() {
         }).start();
       } catch (error) {
         console.error("Error loading menu data:", error);
+        // Set empty arrays on error to prevent UI issues
+        setMenuItems([]);
+        setCategories([{ id: "all", slug: "all", name: "All" }]);
       } finally {
         setIsLoading(false);
       }

@@ -77,6 +77,12 @@ const OrderProvider = ({ children }) => {
     setOrderStartTime(orderTime.getTime());
     setPrepTime(order.prepTime * 60); // Convert to seconds
 
+    // If status is "preparing", reset the start time to now for countdown
+    if (order.status === "preparing") {
+      const now = Date.now();
+      setOrderStartTime(now);
+    }
+
     return order;
   };
 
@@ -108,9 +114,16 @@ const OrderProvider = ({ children }) => {
     setPrepTime(0);
   };
 
-  // Get time remaining based on original order time
+  // Get time remaining based on original order time and status
   const getTimeRemaining = () => {
-    if (!orderStartTime || !prepTime) return 0;
+    if (!orderStartTime || !prepTime || !currentOrder) {
+      return 0;
+    }
+
+    // Only start timer when status is "preparing"
+    if (currentOrder.status !== "preparing") {
+      return prepTime; // Return full prep time if not preparing yet
+    }
 
     const now = Date.now();
     const elapsed = Math.floor((now - orderStartTime) / 1000); // seconds elapsed

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,37 +13,105 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import aboutStyles from "./src/About.js";
+import { supabase } from "../lib/supabase";
 
 const { height } = Dimensions.get("window");
 
 export default function AboutPage() {
   const router = useRouter();
-
-  // Operating hours data
-  const operatingHours = [
+  
+  // State for store settings
+  const [storeSettings, setStoreSettings] = useState(null);
+  const [operatingHours, setOperatingHours] = useState([
     { day: "Monday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
     { day: "Tuesday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
-    {
-      day: "Wednesday",
-      isOpen: true,
-      openTime: "7:00 AM",
-      closeTime: "7:00 PM",
-    },
-    {
-      day: "Thursday",
-      isOpen: true,
-      openTime: "7:00 AM",
-      closeTime: "7:00 PM",
-    },
+    { day: "Wednesday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
+    { day: "Thursday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
     { day: "Friday", isOpen: true, openTime: "7:00 AM", closeTime: "7:00 PM" },
-    {
-      day: "Saturday",
-      isOpen: true,
-      openTime: "8:00 AM",
-      closeTime: "5:00 PM",
-    },
+    { day: "Saturday", isOpen: true, openTime: "8:00 AM", closeTime: "5:00 PM" },
     { day: "Sunday", isOpen: false, openTime: null, closeTime: null },
-  ];
+  ]);
+
+  // Load store settings on component mount
+  useEffect(() => {
+    const loadStoreSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('store_settings')
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('Error loading store settings:', error);
+          // Use fallback data if store settings fail to load
+          setStoreSettings({
+            name: 'NU EATS',
+            description: 'A modern canteen serving fresh, healthy meals with convenient mobile ordering and pickup service.',
+            phone_number: '(+63)912 345 6789',
+            email_address: 'contact@nueats.com',
+            street_address: 'Sampaloc 1 Bridge, SM Dasmarinas, Governor\'s Dr',
+            city: 'Dasmarinas',
+            province: 'Cavite',
+            zip_code: '4114',
+            operating_hours: {
+              monday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              tuesday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              wednesday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              thursday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              friday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              saturday: { open: true, openTime: "08:00", closeTime: "17:00" },
+              sunday: { open: false, openTime: "08:00", closeTime: "17:00" }
+            }
+          });
+        } else {
+          setStoreSettings(data);
+          
+          // Parse operating hours from JSONB
+          if (data.operating_hours) {
+            const hours = data.operating_hours;
+            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            const parsedHours = days.map((day, index) => {
+              const dayData = hours[day];
+              return {
+                day: dayNames[index],
+                isOpen: dayData?.open || false,
+                openTime: dayData?.openTime ? formatTime(dayData.openTime) : null,
+                closeTime: dayData?.closeTime ? formatTime(dayData.closeTime) : null,
+              };
+            });
+            
+            setOperatingHours(parsedHours);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading store settings:', error);
+        // Use fallback data
+        setStoreSettings({
+          name: 'NU EATS',
+          description: 'A modern canteen serving fresh, healthy meals with convenient mobile ordering and pickup service.',
+          phone_number: '(+63)912 345 6789',
+          email_address: 'contact@nueats.com',
+          street_address: 'Sampaloc 1 Bridge, SM Dasmarinas, Governor\'s Dr',
+          city: 'Dasmarinas',
+          province: 'Cavite',
+          zip_code: '4114'
+        });
+      }
+    };
+
+    loadStoreSettings();
+  }, []);
+
+  // Helper function to format time from 24-hour to 12-hour format
+  const formatTime = (time24) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
 
   // Get current day to highlight it
   const getCurrentDay = () => {
@@ -107,9 +175,7 @@ export default function AboutPage() {
 
             <View style={aboutStyles.descriptionSection}>
               <Text style={aboutStyles.description}>
-                NUeats is a school-based food reservation and ordering app
-                designed to make it easier for students to access food
-                conveniently.
+                {storeSettings?.description || 'NUeats is a school-based food reservation and ordering app designed to make it easier for students to access food conveniently.'}
               </Text>
 
               <Text style={aboutStyles.description}>

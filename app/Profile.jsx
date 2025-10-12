@@ -88,7 +88,7 @@ export default function ProfileScreen() {
         // Fetch profile data from profiles table
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('avatar_url, display_name')
+          .select('avatar_url, display_name, phone')
           .eq('id', authUser.id)
           .single();
 
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
           id: authUser.id,
           name: profileData?.display_name || authUser.user_metadata?.display_name || params.userName || authUser.email?.split('@')[0] || 'User',
           email: authUser.email || params.userEmail || '',
-          phone: authUser.user_metadata?.phone || params.userPhone || '',
+          phone: profileData?.phone || authUser.user_metadata?.phone || params.userPhone || '',
           profileImage: profileData?.avatar_url || authUser.user_metadata?.profile_image || null,
           preferences: authUser.user_metadata?.preferences || { notifications: true },
         };
@@ -395,6 +395,7 @@ export default function ProfileScreen() {
             id: authUser.id,
             display_name: trimmedName,
             avatar_url: profileImage,
+            phone: trimmedPhone,
           });
 
         if (profileError) {

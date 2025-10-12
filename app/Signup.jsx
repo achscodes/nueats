@@ -84,7 +84,7 @@ export default function SignUp() {
       return;
     }
     const displayName = `${firstName} ${lastName}`.trim();
-    const result = await signUp({ email, password, displayName });
+    const result = await signUp({ email, password, displayName, phoneNumber });
     if (result.success) {
       Alert.alert(
         "Success",

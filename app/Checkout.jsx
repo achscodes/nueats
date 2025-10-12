@@ -45,6 +45,9 @@ export default function Checkout() {
   const { createOrder } = orderContext;
 
   const [selectedPayment, setSelectedPayment] = useState("cash");
+  const [hasActiveOrder, setHasActiveOrder] = useState(false);
+  const [isCheckingActiveOrder, setIsCheckingActiveOrder] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (params.reorderItems) {
@@ -59,6 +62,40 @@ export default function Checkout() {
       }
     }
   }, []);
+
+  // Check for active orders on component mount
+  useEffect(() => {
+    const checkActiveOrder = async () => {
+      if (!isAuthenticated || !user?.id) {
+        setIsCheckingActiveOrder(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("order_id, status, created_at")
+          .eq("user_id", user.id)
+          .in("status", ["Pending", "Preparing", "Ready"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error("Error checking active order:", error);
+          setIsCheckingActiveOrder(false);
+          return;
+        }
+
+        setHasActiveOrder(data && data.length > 0);
+      } catch (error) {
+        console.error("Error checking active order:", error);
+      } finally {
+        setIsCheckingActiveOrder(false);
+      }
+    };
+
+    checkActiveOrder();
+  }, [isAuthenticated, user]);
 
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -238,6 +275,26 @@ export default function Checkout() {
       return;
     }
 
+    // Check for active orders
+    if (hasActiveOrder) {
+      Alert.alert(
+        "Active Order Found",
+        "You already have an ongoing order. Please wait for it to be completed before placing a new order.",
+        [
+          {
+            text: "View Order Status",
+            onPress: () => router.push("/OrderStatus"),
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          },
+        ]
+      );
+      return;
+    }
+
+    setIsLoading(true);
     try {
       if (selectedPayment.toLowerCase() === "cash") {
         // For cash payments, save directly to database
@@ -295,6 +352,8 @@ export default function Checkout() {
     } catch (e) {
       console.error("Order error:", e);
       Alert.alert("Error", "An unexpected error occurred while placing your order.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -392,8 +451,17 @@ export default function Checkout() {
           <Text style={checkoutStyles.totalText}>₱{totalAmount}</Text>
         </View>
 
-        <TouchableOpacity style={checkoutStyles.orderBtn} onPress={handleOrder}>
-          <Text style={checkoutStyles.orderText}>ORDER</Text>
+        <TouchableOpacity 
+          style={[
+            checkoutStyles.orderBtn,
+            (isLoading || isCheckingActiveOrder || hasActiveOrder) && checkoutStyles.orderButtonDisabled,
+          ]} 
+          onPress={handleOrder}
+          disabled={isLoading || isCheckingActiveOrder || hasActiveOrder}
+        >
+          <Text style={checkoutStyles.orderText}>
+            {isLoading ? "Processing..." : isCheckingActiveOrder ? "Checking..." : hasActiveOrder ? "Active Order" : "ORDER"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
