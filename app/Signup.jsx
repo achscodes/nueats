@@ -46,6 +46,16 @@ export default function SignUp() {
   };
 
   const handleSignUp = async () => {
+    console.log("=== SIGNUP PROCESS STARTED ===");
+    console.log("Form data:", {
+      firstName: firstName?.length || 0,
+      lastName: lastName?.length || 0,
+      email: email?.length || 0,
+      phoneNumber: phoneNumber?.length || 0,
+      password: password?.length || 0,
+      confirmPassword: confirmPassword?.length || 0
+    });
+
     if (
       !firstName ||
       !lastName ||
@@ -54,16 +64,19 @@ export default function SignUp() {
       !password ||
       !confirmPassword
     ) {
+      console.log("❌ Validation failed: Missing required fields");
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
     if (!validateEmail(email)) {
+      console.log("❌ Validation failed: Invalid email format", email);
       Alert.alert("Error", "Please enter a valid email address.");
       return;
     }
 
     if (!validatePhoneNumber(phoneNumber)) {
+      console.log("❌ Validation failed: Invalid phone number format", phoneNumber);
       Alert.alert(
         "Error",
         "Please enter a valid Philippine phone number (11 digits starting with 09)."
@@ -72,6 +85,7 @@ export default function SignUp() {
     }
 
     if (!validatePassword(password)) {
+      console.log("❌ Validation failed: Password doesn't meet requirements");
       Alert.alert(
         "Error",
         "Password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
@@ -80,25 +94,41 @@ export default function SignUp() {
     }
 
     if (password !== confirmPassword) {
+      console.log("❌ Validation failed: Passwords don't match");
       Alert.alert("Error", "Passwords do not match.");
       return;
     }
+
+    console.log("✅ All validations passed, proceeding with signup...");
     const displayName = `${firstName} ${lastName}`.trim();
-    const result = await signUp({ email, password, displayName });
-    if (result.success) {
-      Alert.alert(
-        "Success",
-        "Account created. Please check your email to verify before logging in.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/Login"),
-          },
-        ]
-      );
-    } else {
-      Alert.alert("Error", result.message || "Failed to create account.");
+    console.log("Display name:", displayName);
+    
+    try {
+      const result = await signUp({ email, password, displayName, phoneNumber });
+      console.log("Signup result:", result);
+      
+      if (result.success) {
+        console.log("✅ Signup successful!");
+        Alert.alert(
+          "Success",
+          "Account created. Please check your email to verify before logging in.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace("/Login"),
+            },
+          ]
+        );
+      } else {
+        console.log("❌ Signup failed:", result.message);
+        Alert.alert("Error", result.message || "Failed to create account.");
+      }
+    } catch (error) {
+      console.error("❌ Signup exception:", error);
+      Alert.alert("Error", `An unexpected error occurred: ${error.message}`);
     }
+    
+    console.log("=== SIGNUP PROCESS COMPLETED ===");
   };
 
   return (

@@ -18,6 +18,9 @@ Run the migrations in this order:
 3. `20250104_create_avatars_storage.sql` - Creates the storage bucket and RLS policies
 4. `20250104_create_ratings_table.sql` - Creates ratings table with RLS policies
 5. `20250105_create_complaints_table.sql` - Creates complaints table with RLS policies
+6. `20250112_fix_profiles_suspension_rls.sql` - Fixes RLS to allow users to check suspension status
+7. `20250112_auto_create_profiles.sql` - Auto-creates profiles for new users and backfills existing users
+8. `20250112_unauthenticated_suspension_check.sql` - Allows unauthenticated users to check suspension status
 
 ### Option 2: Using Supabase CLI (Recommended for Production)
 
@@ -74,6 +77,25 @@ Run the migrations in this order:
   - Users can only update Pending or Open complaints
   - Users cannot delete complaints
   - Admins can view/update/delete all complaints
+
+### 20250112_fix_profiles_suspension_rls.sql
+- **IMPORTANT**: Run this migration if suspension checks are hanging/timing out
+- Fixes RLS policies on `profiles` table to allow users to read their own `is_suspended` status
+- Required for the login suspension check to work properly
+- Updates the SELECT policy to explicitly allow access to `is_suspended` column
+
+### 20250112_auto_create_profiles.sql
+- **IMPORTANT**: Run this to prevent "profile not found" errors
+- Creates a database trigger that automatically creates a profile when a new user signs up
+- Backfills profiles for existing users who don't have one
+- Sets default values: role='customer', is_suspended=false
+- Ensures all authenticated users always have a profile record
+
+### 20250112_unauthenticated_suspension_check.sql
+- **IMPORTANT**: Run this to allow suspension checks for unauthenticated users
+- Creates a public RLS policy that allows anyone to SELECT from profiles table
+- This is required for the suspension check to work when users are not authenticated
+- Allows the frontend to check suspension status before authentication
 
 ## Storage Structure
 

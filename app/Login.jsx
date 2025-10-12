@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "./context/AuthContext"; // Import the auth context
+import { supabase } from "../lib/supabase";
 import loginStyles from "./src/Login.js";
 
 export default function Login() {
@@ -23,9 +25,46 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [isHandlingLogin, setIsHandlingLogin] = useState(false);
 
   const router = useRouter();
-  const { login, continueAsGuest, isLoading, resetPassword } = useAuth();
+  const params = useLocalSearchParams();
+  const { login, continueAsGuest, isLoading, resetPassword, isAuthenticated, user } = useAuth();
+
+  // Check if user was just logged out due to suspension
+  useEffect(() => {
+    if (params.suspended === "true") {
+      // Redirect to Suspended screen instead of showing modal
+      router.replace("/Suspended");
+    }
+  }, [params.suspended]);
+
+  // If user somehow gets authenticated while on Login page, check suspension first
+  useEffect(() => {
+    const checkSuspensionAndRedirect = async () => {
+      if (isAuthenticated && !isHandlingLogin && user) {
+        try {
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('is_suspended')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profileData?.is_suspended === true) {
+            console.log('Login: User is suspended, redirecting to Suspended screen');
+            router.replace("/Suspended");
+          } else {
+            console.log('Login: User not suspended, redirecting to Menu');
+            router.replace("/Menu");
+          }
+        } catch (error) {
+          console.error('Login: Error checking suspension:', error);
+          router.replace("/Menu");
+        }
+      }
+    };
+    checkSuspensionAndRedirect();
+  }, [isAuthenticated, isHandlingLogin, user]);
 
   const handleLogin = async () => {
     // Clear previous error
@@ -44,22 +83,28 @@ export default function Login() {
     }
 
     try {
+      setIsHandlingLogin(true);
       const result = await login(email, password);
       if (result.success) {
-        Alert.alert("Success", `Welcome back!`, [
-          {
-            text: "OK",
-            onPress: () =>
-              router.replace({
-                pathname: "/Menu",
-              }),
-          },
-        ]);
+        // Don't show alert, just navigate directly
+        router.replace({
+          pathname: "/Menu",
+        });
       } else {
-        setLoginError(result.message);
+        // Check if account is suspended
+        if (result.isSuspended) {
+          // Redirect to Suspended screen instead of showing modal
+          router.replace("/Suspended");
+          // Clear password field for security
+          setPassword("");
+        } else {
+          setLoginError(result.message);
+        }
       }
     } catch (error) {
       setLoginError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsHandlingLogin(false);
     }
   };
 
@@ -224,6 +269,7 @@ export default function Login() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
     </ImageBackground>
   );
 }

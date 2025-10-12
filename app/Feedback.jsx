@@ -10,12 +10,16 @@ import {
 import Icon from "react-native-vector-icons/FontAwesome";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { feedbackStyles } from "./src/Feedback.js";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 const FeedbackScreen = () => {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
 
   // Get order details from params
   const {
@@ -27,7 +31,12 @@ const FeedbackScreen = () => {
     orderTime,
   } = params;
 
-  const submitFeedback = () => {
+  // Debug: Log the parameters received
+  console.log('Feedback screen params:', params);
+
+  const submitFeedback = async () => {
+    console.log('Feedback submission started:', { rating, feedback, orderId, user: user?.id });
+    
     // Validate required fields
     if (rating === 0) {
       Alert.alert(
@@ -45,22 +54,69 @@ const FeedbackScreen = () => {
       return;
     }
 
-    console.log("Feedback submitted:", feedback, "Rating:", rating);
+    if (!user?.id || !orderId) {
+      console.log('Missing user or orderId:', { userId: user?.id, orderId });
+      Alert.alert(
+        "Error",
+        "Unable to submit feedback. Please try again."
+      );
+      return;
+    }
 
-    // Navigate to Receipt page with order details
-    router.push({
-      pathname: "/Receipt",
-      params: {
-        items: orderItems,
-        amount: orderTotal,
-        paymentMethod: paymentMethod || "Cash",
-        date: orderTime
-          ? new Date(orderTime).toLocaleDateString()
-          : new Date().toLocaleDateString(),
-        refNo: orderNumber,
-        orderNumber: orderNumber,
-      },
-    });
+    setIsSubmitting(true);
+    try {
+      console.log('Saving feedback to database...');
+      // Save feedback to database
+      const { error } = await supabase
+        .from('ratings')
+        .insert({
+          order_id: Number(orderId),
+          stars: rating,
+          feedback: feedback.trim(),
+        });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      console.log('Feedback saved successfully, showing success alert...');
+      // Show success message
+      Alert.alert(
+        "Success", 
+        "Thank you for your feedback!",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              console.log('Navigating to Receipt page...');
+              // Navigate to Receipt page with order details
+              router.push({
+                pathname: "/Receipt",
+                params: {
+                  items: orderItems,
+                  amount: orderTotal,
+                  paymentMethod: paymentMethod || "Cash",
+                  date: orderTime
+                    ? new Date(orderTime).toLocaleDateString()
+                    : new Date().toLocaleDateString(),
+                  refNo: orderNumber,
+                  orderNumber: orderNumber,
+                },
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      Alert.alert(
+        "Error", 
+        error.message || "Failed to submit feedback. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,11 +171,17 @@ const FeedbackScreen = () => {
 
         {/* Submit Button Only */}
         <TouchableOpacity
-          style={feedbackStyles.feedbackSubmitButtonFull}
+          style={[
+            feedbackStyles.feedbackSubmitButtonFull,
+            isSubmitting && { opacity: 0.6 }
+          ]}
           onPress={submitFeedback}
           activeOpacity={0.8}
+          disabled={isSubmitting}
         >
-          <Text style={feedbackStyles.feedbackButtonText}>SUBMIT</Text>
+          <Text style={feedbackStyles.feedbackButtonText}>
+            {isSubmitting ? "SUBMITTING..." : "SUBMIT"}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,7 +21,11 @@ import { useAuth } from "./context/AuthContext";
 export default function HelpSupport() {
   const router = useRouter();
   const { user: authUser, isGuest } = useAuth();
-  const { storeInfo, contactMethods, faqData } = helpSupportDemoData;
+  const { contactMethods, faqData } = helpSupportDemoData;
+  
+  // State for store settings
+  const [storeSettings, setStoreSettings] = useState(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   // Modal state
   const [reportModalVisible, setReportModalVisible] = useState(false);
@@ -40,6 +44,50 @@ export default function HelpSupport() {
     "Pickup Delay",
     "Other",
   ];
+
+  // Load store settings on component mount
+  useEffect(() => {
+    const loadStoreSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('store_settings')
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('Error loading store settings:', error);
+          // Use fallback data if store settings fail to load
+          setStoreSettings({
+            name: 'NU EATS',
+            phone_number: '(+63)912 345 6789',
+            email_address: 'contact@nueats.com',
+            street_address: 'Sampaloc 1 Bridge, SM Dasmarinas, Governor\'s Dr',
+            city: 'Dasmarinas',
+            province: 'Cavite',
+            zip_code: '4114'
+          });
+        } else {
+          setStoreSettings(data);
+        }
+      } catch (error) {
+        console.error('Error loading store settings:', error);
+        // Use fallback data
+        setStoreSettings({
+          name: 'NU EATS',
+          phone_number: '(+63)912 345 6789',
+          email_address: 'contact@nueats.com',
+          street_address: 'Sampaloc 1 Bridge, SM Dasmarinas, Governor\'s Dr',
+          city: 'Dasmarinas',
+          province: 'Cavite',
+          zip_code: '4114'
+        });
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+
+    loadStoreSettings();
+  }, []);
 
   const handleCall = (phoneNumber) => {
     Linking.openURL(`tel:${phoneNumber}`);
@@ -168,14 +216,16 @@ export default function HelpSupport() {
             For urgent order issues or food safety concerns during business
             hours only.
           </Text>
-          <TouchableOpacity
-            style={helpSupportStyles.emergencyButton}
-            onPress={() => handleCall(storeInfo.emergencyNumber)}
-          >
-            <Text style={helpSupportStyles.emergencyButtonText}>
-              Call: {storeInfo.emergencyNumber}
-            </Text>
-          </TouchableOpacity>
+          {storeSettings && (
+            <TouchableOpacity
+              style={helpSupportStyles.emergencyButton}
+              onPress={() => handleCall(storeSettings.phone_number)}
+            >
+              <Text style={helpSupportStyles.emergencyButtonText}>
+                Call: {storeSettings.phone_number}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Quick Actions */}
@@ -204,74 +254,78 @@ export default function HelpSupport() {
         <View style={helpSupportStyles.helpSection}>
           <Text style={helpSupportStyles.helpSectionTitle}>Contact Us</Text>
 
-          <TouchableOpacity
-            style={helpSupportStyles.contactOption}
-            onPress={() => handleCall(contactMethods.phone.number)}
-          >
-            <View style={helpSupportStyles.contactIcon}>
-              <Ionicons
-                name={contactMethods.phone.icon}
-                size={24}
-                color={HELP_COLORS.success}
-              />
-            </View>
-            <View style={helpSupportStyles.contactInfo}>
-              <Text style={helpSupportStyles.contactTitle}>
-                {contactMethods.phone.title}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.phone.number}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.phone.availability}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          {storeSettings && (
+            <>
+              <TouchableOpacity
+                style={helpSupportStyles.contactOption}
+                onPress={() => handleCall(storeSettings.phone_number)}
+              >
+                <View style={helpSupportStyles.contactIcon}>
+                  <Ionicons
+                    name="call"
+                    size={24}
+                    color={HELP_COLORS.success}
+                  />
+                </View>
+                <View style={helpSupportStyles.contactInfo}>
+                  <Text style={helpSupportStyles.contactTitle}>
+                    Phone
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    {storeSettings.phone_number}
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    Available during business hours
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={helpSupportStyles.contactOption}
-            onPress={() => handleEmail(contactMethods.email.address)}
-          >
-            <View style={helpSupportStyles.contactIcon}>
-              <Ionicons
-                name={contactMethods.email.icon}
-                size={24}
-                color={HELP_COLORS.primary}
-              />
-            </View>
-            <View style={helpSupportStyles.contactInfo}>
-              <Text style={helpSupportStyles.contactTitle}>
-                {contactMethods.email.title}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.email.address}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.email.responseTime}
-              </Text>
-            </View>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={helpSupportStyles.contactOption}
+                onPress={() => handleEmail(storeSettings.email_address)}
+              >
+                <View style={helpSupportStyles.contactIcon}>
+                  <Ionicons
+                    name="mail"
+                    size={24}
+                    color={HELP_COLORS.primary}
+                  />
+                </View>
+                <View style={helpSupportStyles.contactInfo}>
+                  <Text style={helpSupportStyles.contactTitle}>
+                    Email
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    {storeSettings.email_address}
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    Response within 24 hours
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-          <View style={helpSupportStyles.contactOption}>
-            <View style={helpSupportStyles.contactIcon}>
-              <Ionicons
-                name={contactMethods.location.icon}
-                size={24}
-                color={HELP_COLORS.accent}
-              />
-            </View>
-            <View style={helpSupportStyles.contactInfo}>
-              <Text style={helpSupportStyles.contactTitle}>
-                {contactMethods.location.title}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.location.address}
-              </Text>
-              <Text style={helpSupportStyles.contactDetail}>
-                {contactMethods.location.city}
-              </Text>
-            </View>
-          </View>
+              <View style={helpSupportStyles.contactOption}>
+                <View style={helpSupportStyles.contactIcon}>
+                  <Ionicons
+                    name="location"
+                    size={24}
+                    color={HELP_COLORS.accent}
+                  />
+                </View>
+                <View style={helpSupportStyles.contactInfo}>
+                  <Text style={helpSupportStyles.contactTitle}>
+                    Location
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    {storeSettings.street_address}
+                  </Text>
+                  <Text style={helpSupportStyles.contactDetail}>
+                    {storeSettings.city}, {storeSettings.province} {storeSettings.zip_code}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Frequently Asked Questions */}

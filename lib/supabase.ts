@@ -28,6 +28,13 @@ const SecureStoreAdapter = {
   },
 };
 
+// Log Supabase configuration (without exposing sensitive data)
+console.log("=== SUPABASE CONFIGURATION ===");
+console.log("Supabase URL configured:", !!SUPABASE_URL);
+console.log("Supabase URL length:", SUPABASE_URL?.length || 0);
+console.log("Supabase Anon Key configured:", !!SUPABASE_ANON_KEY);
+console.log("Supabase Anon Key length:", SUPABASE_ANON_KEY?.length || 0);
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: SecureStoreAdapter as any,
@@ -35,4 +42,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+});
+
+// Test Supabase connection
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error("❌ Supabase connection test failed:", error);
+  } else {
+    console.log("✅ Supabase connection test successful");
+  }
+}).catch(err => {
+  console.error("❌ Supabase connection exception:", err);
 });

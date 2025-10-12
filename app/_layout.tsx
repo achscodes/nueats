@@ -25,15 +25,13 @@ export default function RootLayout() {
               <Stack.Screen name="Profile" />
               <Stack.Screen name="Checkout" />
               <Stack.Screen name="OrderStatus" />
-              {/* ✅ Add Feedback screen */}
               <Stack.Screen name="Feedback" />
-              {/* ✅ Add About screen if you want it accessible */}
+              <Stack.Screen name="Receipt" />
+              <Stack.Screen name="Transaction" />
+              <Stack.Screen name="Complaints" />
               <Stack.Screen name="AboutPage" />
-              {/* ✅ Add Settings screen since Menu links to it */}
               <Stack.Screen name="Setting" />
-              {/* ✅ Add Help & Support screen */}
               <Stack.Screen name="HelpSupport" />
-              {/* ✅ Add Payment screens for deep link redirect */}
               <Stack.Screen name="payment-success" />
               <Stack.Screen name="payment-failed" />
             </Stack>

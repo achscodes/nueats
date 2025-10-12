@@ -24,7 +24,29 @@ import { demoHelpers } from "./demodata/profileDemoData.js";
 
 const { height, width } = Dimensions.get("window");
 
-export default function Menu() {
+// Authentication wrapper component
+function MenuWithAuth() {
+  const { isGuest, user, isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Immediate redirect if not authenticated
+  useEffect(() => {
+    if (isGuest || !user || !isAuthenticated) {
+      console.log('Menu: User not authenticated, redirecting to Login');
+      router.replace("/Login");
+    }
+  }, [isGuest, user, isAuthenticated]);
+
+  // Don't render if not authenticated
+  if (isGuest || !user || !isAuthenticated) {
+    return null;
+  }
+
+  return <MenuContent />;
+}
+
+// Main menu content component
+function MenuContent() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [searchText, setSearchText] = useState("");
@@ -48,9 +70,38 @@ export default function Menu() {
   const { currentOrder, getTimeRemaining, storeOrderFromStatus, clearOrder } =
     useContext(OrderContext);
 
-  const { isGuest, getUserFirstName, getUserInitials, user, logout } = useAuth(); // Get auth state
+  const { isGuest, getUserFirstName, getUserInitials, user, logout, checkSuspensionStatus } = useAuth(); // Get auth state
   const [activeOrder, setActiveOrder] = useState(null); // latest active order from DB
   const [profileAvatar, setProfileAvatar] = useState(null); // User's profile picture from DB
+
+  // Check suspension status on screen focus - redirect immediately if suspended
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkSuspension = async () => {
+        try {
+          // Direct database check for suspension status
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('is_suspended')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          console.log('Menu: Direct suspension check for user:', user.id, 'Result:', profileData);
+
+          if (profileData?.is_suspended === true) {
+            console.log('Menu: User is suspended! Redirecting to Suspended screen...');
+            // Force logout and redirect
+            await logout();
+            router.replace("/Suspended");
+            return;
+          }
+        } catch (error) {
+          console.error('Menu: Error checking suspension:', error);
+        }
+      };
+      checkSuspension();
+    }, [user, logout])
+  );
 
   // Handle focus effect for navigation from OrderStatus
   useFocusEffect(
@@ -133,7 +184,7 @@ export default function Menu() {
             .from("profiles")
             .select("avatar_url")
             .eq("id", user.id)
-            .single();
+            .maybeSingle();
           
           if (error) {
             console.error("Failed to load profile avatar", error);
@@ -150,6 +201,54 @@ export default function Menu() {
       fetchProfileAvatar();
     }, [user?.id, isGuest])
   );
+
+  // Immediate suspension check on component mount
+  useEffect(() => {
+    const checkSuspensionImmediately = async () => {
+      try {
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('is_suspended')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        console.log('Menu: Immediate suspension check for user:', user.id, 'Result:', profileData);
+
+        if (profileData?.is_suspended === true) {
+          console.log('Menu: User is suspended! Immediate redirect to Suspended screen...');
+          await logout();
+          router.replace("/Suspended");
+          return;
+        }
+      } catch (error) {
+        console.error('Menu: Error in immediate suspension check:', error);
+      }
+    };
+    checkSuspensionImmediately();
+  }, [user, logout]);
+
+  // Periodic suspension check every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('is_suspended')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profileData?.is_suspended === true) {
+          console.log('Menu: Periodic check - User is suspended! Redirecting...');
+          await logout();
+          router.replace("/Suspended");
+        }
+      } catch (error) {
+        console.error('Menu: Error in periodic suspension check:', error);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [user, logout]);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -201,7 +300,7 @@ export default function Menu() {
     const loadMenuData = async () => {
       setIsLoading(true);
       try {
-        // Build base query
+        // Build base query - menu items should be visible to everyone (guests and authenticated users)
         let query = supabase
           .from("menu_items")
           .select("id,name,description,price,category,image,prep_time,is_available")
@@ -220,8 +319,12 @@ export default function Menu() {
         }
 
         const { data: items, error } = await query;
-        if (error) throw error;
+        if (error) {
+          console.error("Menu items query error:", error);
+          throw error;
+        }
 
+        console.log("Loaded menu items:", items?.length || 0);
         setMenuItems(items || []);
 
         // Build categories dynamically from DB (from available items)
@@ -229,7 +332,10 @@ export default function Menu() {
           .from("menu_items")
           .select("category")
           .eq("is_available", true);
-        if (allErr) throw allErr;
+        if (allErr) {
+          console.error("Categories query error:", allErr);
+          throw allErr;
+        }
 
         const unique = Array.from(
           new Set((allItems || []).map((r) => r.category).filter(Boolean))
@@ -248,6 +354,9 @@ export default function Menu() {
         }).start();
       } catch (error) {
         console.error("Error loading menu data:", error);
+        // Set empty arrays on error to prevent UI issues
+        setMenuItems([]);
+        setCategories([{ id: "all", slug: "all", name: "All" }]);
       } finally {
         setIsLoading(false);
       }
@@ -821,3 +930,6 @@ export default function Menu() {
     </GestureHandlerRootView>
   );
 }
+
+// Export the wrapper component
+export default MenuWithAuth;

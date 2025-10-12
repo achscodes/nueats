@@ -200,6 +200,10 @@ const checkoutStyles = StyleSheet.create({
     color: CHECKOUT_COLORS.white,
     letterSpacing: 1,
   },
+  orderButtonDisabled: {
+    backgroundColor: CHECKOUT_COLORS.gray,
+    opacity: 0.6,
+  },
 });
 
 export default checkoutStyles;

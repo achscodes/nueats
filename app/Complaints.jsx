@@ -98,16 +98,48 @@ export default function Complaints() {
 
       if (error) throw error;
 
+      // Get complaint IDs for fetching responses
+      const complaintIds = data.map(c => c.complaint_id);
+      
+      // Fetch admin responses for these complaints
+      let responsesMap = {};
+      if (complaintIds.length > 0) {
+        const { data: responsesData, error: responsesError } = await supabase
+          .from('complaint_responses')
+          .select('complaint_id, admin_name, response_text, created_at')
+          .in('complaint_id', complaintIds)
+          .order('created_at', { ascending: false });
+
+        if (!responsesError && responsesData) {
+          // Group responses by complaint_id
+          responsesMap = responsesData.reduce((acc, response) => {
+            if (!acc[response.complaint_id]) {
+              acc[response.complaint_id] = [];
+            }
+            acc[response.complaint_id].push({
+              response_text: response.response_text,
+              response_date: response.created_at,
+              admin_name: response.admin_name
+            });
+            return acc;
+          }, {});
+        }
+      }
+
       // Transform data to match existing component structure
-      const transformedComplaints = data.map(complaint => ({
-        complaint_id: complaint.complaint_id.toString(),
-        title: complaint.title,
-        category: complaint.category,
-        description: complaint.description,
-        status: complaint.status.toLowerCase(),
-        created_date: complaint.created_at,
-        resolved_date: complaint.resolved_at,
-      }));
+      const transformedComplaints = data.map(complaint => {
+        const responses = responsesMap[complaint.complaint_id] || [];
+        return {
+          complaint_id: complaint.complaint_id.toString(),
+          title: complaint.title,
+          category: complaint.category,
+          description: complaint.description,
+          status: complaint.status.toLowerCase(),
+          created_date: complaint.created_at,
+          resolved_date: complaint.resolved_at,
+          admin_response: responses.length > 0 ? responses[0] : null, // Get the latest response
+        };
+      });
 
       setComplaints(transformedComplaints);
     } catch (error) {
