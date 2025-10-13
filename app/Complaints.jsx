@@ -98,7 +98,7 @@ export default function Complaints() {
 
       if (error) throw error;
 
-      // Get complaint IDs for fetching responses
+      // Get complaint IDs for fetching responses (use strings for stable map keys)
       const complaintIds = data.map(c => c.complaint_id);
       
       // Fetch admin responses for these complaints
@@ -113,10 +113,11 @@ export default function Complaints() {
         if (!responsesError && responsesData) {
           // Group responses by complaint_id
           responsesMap = responsesData.reduce((acc, response) => {
-            if (!acc[response.complaint_id]) {
-              acc[response.complaint_id] = [];
+            const key = String(response.complaint_id);
+            if (!acc[key]) {
+              acc[key] = [];
             }
-            acc[response.complaint_id].push({
+            acc[key].push({
               response_text: response.response_text,
               response_date: response.created_at,
               admin_name: response.admin_name
@@ -128,7 +129,7 @@ export default function Complaints() {
 
       // Transform data to match existing component structure
       const transformedComplaints = data.map(complaint => {
-        const responses = responsesMap[complaint.complaint_id] || [];
+        const responses = responsesMap[String(complaint.complaint_id)] || [];
         return {
           complaint_id: complaint.complaint_id.toString(),
           title: complaint.title,
@@ -257,8 +258,8 @@ export default function Complaints() {
               {item.description}
             </Text>
 
-            {/* Admin Response for Resolved Complaints */}
-            {item.status === "resolved" && item.admin_response && (
+            {/* Admin Response: show whenever a response exists, regardless of status */}
+            {item.admin_response && (
               <View style={complaintsStyles.complaintAdminResponseContainer}>
                 <View style={complaintsStyles.complaintsFlexRow}>
                   <Ionicons name="checkmark-circle" size={16} color="#51cf66" />
@@ -280,7 +281,7 @@ export default function Complaints() {
                   {item.admin_response.response_text}
                 </Text>
                 <Text style={complaintsStyles.complaintAdminResponseDate}>
-                  Resolved on{" "}
+                  Responded on{" "}
                   {userComplaintsHelpers.formatDate(
                     item.admin_response.response_date
                   )}
