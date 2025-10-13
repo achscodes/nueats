@@ -28,7 +28,7 @@ const { width } = Dimensions.get("window");
 export default function OrderStatus() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { createOrder, getTimeRemaining, getEstimatedReadyTime, clearOrder } =
+  const { createOrder, getTimeRemaining, getEstimatedReadyTime, clearOrder, computePrepMinutes } =
     useContext(OrderContext);
   const { user } = useAuth();
 
@@ -78,20 +78,8 @@ export default function OrderStatus() {
     return !isNaN(parsed) ? new Date(parsed) : new Date();
   }, [time]);
 
-  // Calculate ETA based on actual prep times
-  const calculateETA = useMemo(() => {
-    if (orderItems.length === 0) return 15; // Default 15 minutes if no items
-
-    // Find the maximum prep time among all items (since they can be prepared in parallel)
-    const maxPrepTime = Math.max(...orderItems.map((item) => item.prep_time));
-
-    // Add base queue/setup time (2-5 minutes depending on queue position)
-    const orderPosition = Number(id) || 1;
-    const queueTime = Math.min(2 + (orderPosition - 1) * 2, 10); // Max 10 min queue time
-
-    // Total ETA is max prep time + queue time
-    return maxPrepTime + queueTime;
-  }, [orderItems, id]);
+  // Calculate ETA using unified logic (max item prep + 5 minutes)
+  const calculateETA = useMemo(() => computePrepMinutes(orderItems), [orderItems, computePrepMinutes]);
 
   const estimatedReadyTime = useMemo(
     () => new Date(orderTime.getTime() + calculateETA * 60000),

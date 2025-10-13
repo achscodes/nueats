@@ -460,7 +460,7 @@ function MenuContent() {
       // Fetch full order details including items
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
-        .select('product_id, quantity, price, menu_items:product_id(id,name,image)')
+        .select('product_id, quantity, price, menu_items:product_id(id,name,image,prep_time)')
         .eq('order_id', activeOrder.order_id);
 
       if (itemsError) throw itemsError;
@@ -472,6 +472,7 @@ function MenuContent() {
         price: Number(item.price),
         quantity: Number(item.quantity),
         image: item.menu_items?.image || '',
+        prep_time: Number(item.menu_items?.prep_time || 0) || undefined,
       }));
 
       const orderNumber = `NU-2025-${activeOrder.order_id.toString().slice(-6)}`;

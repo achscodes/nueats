@@ -42,7 +42,7 @@ export default function Checkout() {
   if (!orderContext) return <Text>Loading order...</Text>;
 
   const { cartItems, clearCart, addToCart } = cartContext;
-  const { createOrder } = orderContext;
+  const { createOrder, computePrepMinutes } = orderContext;
 
   const [selectedPayment, setSelectedPayment] = useState("cash");
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
@@ -102,14 +102,7 @@ export default function Checkout() {
     0
   );
 
-  const calculatePrepTime = () => {
-    if (cartItems.length === 0) return 15;
-    const maxPrepTime = Math.max(
-      ...cartItems.map((item) => item.prep_time || 15)
-    );
-    const queueTime = 5;
-    return maxPrepTime + queueTime;
-  };
+  const calculatePrepTime = () => computePrepMinutes(cartItems);
 
   const mapPaymentMethod = (method) => {
     // PayMongo handles both GCash and PayMaya, store as Paymongo in DB

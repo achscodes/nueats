@@ -44,7 +44,7 @@ export default function Cart() {
         const { data: items, error: itemsErr } = await supabase
           .from("cart_items")
           .select(
-            "cart_item_id, product_id, quantity, menu_items:product_id(id,name,price,image)"
+            "cart_item_id, product_id, quantity, menu_items:product_id(id,name,price,image,prep_time)"
           )
           .eq("cart_id", cartRow.cart_id);
         if (itemsErr) throw itemsErr;
@@ -55,6 +55,7 @@ export default function Cart() {
           price: Number(row.menu_items?.price || 0),
           image: row.menu_items?.image || "",
           quantity: Number(row.quantity || 1),
+          prep_time: Number(row.menu_items?.prep_time || 0) || undefined,
         }));
         setCartItems(hydrated);
       } catch (e) {
