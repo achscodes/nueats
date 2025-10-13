@@ -139,6 +139,18 @@ const OrderProvider = ({ children }) => {
     return new Date(orderStartTime + prepTime * 1000);
   };
 
+  // Compute preparation minutes consistently across the app
+  // Uses the maximum per-item prep time, plus a constant 5-minute buffer
+  const computePrepMinutes = (items) => {
+    const safeItems = Array.isArray(items) ? items : [];
+    if (safeItems.length === 0) return 15;
+    const maxItemMinutes = Math.max(
+      ...safeItems.map((it) => Number(it?.prep_time || 15))
+    );
+    const bufferMinutes = 5;
+    return maxItemMinutes + bufferMinutes;
+  };
+
   // Store order from OrderStatus when navigating back
   const storeOrderFromStatus = (orderParams) => {
     try {
@@ -147,16 +159,8 @@ const OrderProvider = ({ children }) => {
           ? JSON.parse(decodeURIComponent(orderParams.items))
           : orderParams.items || [];
 
-      // Calculate prep time from items
-      let maxPrepTime = 15; // default
-      if (orderItems.length > 0) {
-        maxPrepTime = Math.max(
-          ...orderItems.map((item) => item.prep_time || 15)
-        );
-        const orderPosition = Number(orderParams.id) || 1;
-        const queueTime = Math.min(2 + (orderPosition - 1) * 2, 10);
-        maxPrepTime += queueTime;
-      }
+      // Calculate prep time from items using unified logic
+      const maxPrepTime = computePrepMinutes(orderItems);
 
       const orderData = {
         id: orderParams.id,
@@ -206,6 +210,7 @@ const OrderProvider = ({ children }) => {
     getEstimatedReadyTime,
     getOrderByNumber,
     getAllOrders,
+    computePrepMinutes,
 
     // Legacy props for backward compatibility
     setOrderStartTime,
