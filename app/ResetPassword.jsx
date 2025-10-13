@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   ScrollView
 } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './context/AuthContext';
 
 export default function ResetPassword({ navigation }) {
   const [newPassword, setNewPassword] = useState('');

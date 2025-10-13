@@ -24,27 +24,6 @@ import { demoHelpers } from "./demodata/profileDemoData.js";
 
 const { height, width } = Dimensions.get("window");
 
-// Authentication wrapper component
-function MenuWithAuth() {
-  const { isGuest, user, isAuthenticated } = useAuth();
-  const router = useRouter();
-
-  // Immediate redirect if not authenticated
-  useEffect(() => {
-    if (isGuest || !user || !isAuthenticated) {
-      console.log('Menu: User not authenticated, redirecting to Login');
-      router.replace("/Login");
-    }
-  }, [isGuest, user, isAuthenticated]);
-
-  // Don't render if not authenticated
-  if (isGuest || !user || !isAuthenticated) {
-    return null;
-  }
-
-  return <MenuContent />;
-}
-
 // Main menu content component
 function MenuContent() {
   const router = useRouter();
@@ -79,6 +58,7 @@ function MenuContent() {
     React.useCallback(() => {
       const checkSuspension = async () => {
         try {
+          if (!user || isGuest) return;
           // Direct database check for suspension status
           const { data: profileData, error } = await supabase
             .from('profiles')
@@ -100,7 +80,7 @@ function MenuContent() {
         }
       };
       checkSuspension();
-    }, [user, logout])
+    }, [user, logout, isGuest])
   );
 
   // Handle focus effect for navigation from OrderStatus
@@ -202,10 +182,11 @@ function MenuContent() {
     }, [user?.id, isGuest])
   );
 
-  // Immediate suspension check on component mount
+  // Immediate suspension check on component mount (skip for guests)
   useEffect(() => {
     const checkSuspensionImmediately = async () => {
       try {
+        if (!user || isGuest) return;
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('is_suspended')
@@ -225,12 +206,13 @@ function MenuContent() {
       }
     };
     checkSuspensionImmediately();
-  }, [user, logout]);
+  }, [user, logout, isGuest]);
 
-  // Periodic suspension check every 5 seconds
+  // Periodic suspension check every 5 seconds (skip for guests)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
+        if (!user || isGuest) return;
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('is_suspended')
@@ -248,7 +230,7 @@ function MenuContent() {
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
-  }, [user, logout]);
+  }, [user, logout, isGuest]);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -931,5 +913,5 @@ function MenuContent() {
   );
 }
 
-// Export the wrapper component
-export default MenuWithAuth;
+// Export the menu content directly so guests can browse
+export default MenuContent;
